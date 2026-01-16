@@ -23,12 +23,25 @@ import { DistrictHeadDashboard } from "../pages/districthead/Dashboard";
 import { CollegeAdminDashboard } from "../pages/collegeadmin/Dashboard";
 import CollegeAdminTeachersPage from "../pages/collegeadmin/TeachersPage";
 import CollegeAdminStudentsPage from "../pages/collegeadmin/StudentsPage";
+import SubjectsManagementPage from "../pages/collegeadmin/SubjectsManagementPage";
+import SectionsManagementPage from "../pages/collegeadmin/SectionsManagementPage";
+import TeacherAssignmentPage from "../pages/collegeadmin/TeacherAssignmentPage";
+import MarkAttendancePage from "../pages/collegeadmin/MarkAttendancePage";
+import AttendanceStatisticsPage from "../pages/collegeadmin/AttendanceStatisticsPage";
 
 // Teacher Pages
 import { TeacherDashboard } from "../pages/teacher/Dashboard";
+import MyClassesPage from "../pages/teacher/MyClassesPage";
+import TeacherMarkAttendancePage from "../pages/teacher/TeacherMarkAttendancePage";
+import AttendanceRecordsPage from "../pages/teacher/AttendanceRecordsPage";
+import TeacherStatisticsPage from "../pages/teacher/TeacherStatisticsPage";
 
 // Student Pages
 import { StudentDashboard } from "../pages/student/Dashboard";
+import { SectionDetailsPage } from "../pages/student/SectionDetailsPage";
+import { AttendanceRecordsPage as StudentAttendanceRecordsPage } from "../pages/student/AttendanceRecordsPage";
+import { StudentStatisticsPage } from "../pages/student/StudentStatisticsPage";
+import { ClassmatesPage } from "../pages/student/ClassmatesPage";
 
 // Error Pages
 const NotFound = () => (
@@ -199,11 +212,23 @@ export const router = createBrowserRouter([
       },
       {
         path: "subjects",
-        element: <div>Subjects Page</div>,
+        element: <SubjectsManagementPage />,
       },
       {
-        path: "attendance",
-        element: <div>Attendance Page</div>,
+        path: "sections",
+        element: <SectionsManagementPage />,
+      },
+      {
+        path: "teacher-assignments",
+        element: <TeacherAssignmentPage />,
+      },
+      {
+        path: "mark-attendance",
+        element: <MarkAttendancePage />,
+      },
+      {
+        path: "attendance-statistics",
+        element: <AttendanceStatisticsPage />,
       },
       {
         path: "reports",
@@ -229,16 +254,20 @@ export const router = createBrowserRouter([
         element: <TeacherDashboard />,
       },
       {
-        path: "students",
-        element: <div>Students Page</div>,
+        path: "my-classes",
+        element: <MyClassesPage />,
       },
       {
-        path: "subjects",
-        element: <div>Subjects Page</div>,
+        path: "mark-attendance",
+        element: <TeacherMarkAttendancePage />,
       },
       {
-        path: "attendance",
-        element: <div>Attendance Page</div>,
+        path: "attendance-records",
+        element: <AttendanceRecordsPage />,
+      },
+      {
+        path: "statistics",
+        element: <TeacherStatisticsPage />,
       },
       {
         path: "reports",
@@ -264,8 +293,20 @@ export const router = createBrowserRouter([
         element: <StudentDashboard />,
       },
       {
+        path: "section",
+        element: <SectionDetailsPage />,
+      },
+      {
         path: "attendance",
-        element: <div>My Attendance Page</div>,
+        element: <StudentAttendanceRecordsPage />,
+      },
+      {
+        path: "statistics",
+        element: <StudentStatisticsPage />,
+      },
+      {
+        path: "classmates",
+        element: <ClassmatesPage />,
       },
       {
         path: "settings",

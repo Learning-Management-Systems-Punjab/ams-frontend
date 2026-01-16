@@ -94,6 +94,23 @@ export interface CreateStudentResponse {
 
 export interface BulkImportStudent extends CreateStudentDto {}
 
+// CSV Import Format (auto-creates programs/sections)
+export interface BulkImportCSVStudent {
+  "Student Name": string;
+  "Roll No": string;
+  "Father Name": string;
+  Program: string; // e.g., "F.Sc. (Pre-Engineering)-Mathematics, Chemistry, Physics"
+  Class?: string; // e.g., "1st Year"
+  "Subject-Combination"?: string; // e.g., "1st Shift - Mathematics, Chemistry, Physics"
+  "Student Phone"?: string;
+  "Student CNIC/FORM-B"?: string;
+  Email?: string;
+  "Date of Birth"?: string;
+  Gender?: string;
+  Address?: string;
+  Status?: string;
+}
+
 export interface BulkImportResult {
   summary: {
     total: number;
@@ -255,13 +272,28 @@ export const collegeAdminStudentService = {
   },
 
   /**
-   * Bulk import students
+   * Bulk import students (legacy - requires programId/sectionId)
    */
   bulkImport: async (
     students: BulkImportStudent[],
     createLoginAccounts: boolean = false
   ): Promise<BulkImportResult> => {
     const response = await api.post("/college-admin/students/bulk-import", {
+      students,
+      createLoginAccounts,
+    });
+    return response.data.data;
+  },
+
+  /**
+   * Bulk import students from CSV (auto-creates programs/sections)
+   * Use this method for CSV imports with raw column names
+   */
+  bulkImportCSV: async (
+    students: BulkImportCSVStudent[],
+    createLoginAccounts: boolean = false
+  ): Promise<BulkImportResult> => {
+    const response = await api.post("/college-admin/students/bulk-import-csv", {
       students,
       createLoginAccounts,
     });

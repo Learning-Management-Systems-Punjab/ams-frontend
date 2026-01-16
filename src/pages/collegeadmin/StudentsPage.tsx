@@ -12,6 +12,51 @@ import type { Program } from "../../services/collegeAdminProgram.service";
 import type { Section } from "../../services/collegeAdminSection.service";
 import { useToast } from "../../hooks/useToast";
 import { ToastContainer } from "../../components/ui/Toast";
+import * as XLSX from "xlsx";
+
+// ==================== CSV Parser Utility ====================
+/**
+ * Properly parse CSV data respecting quoted values
+ * This handles commas inside quoted fields
+ */
+const parseCSV = (csvText: string): string[][] => {
+  const lines: string[][] = [];
+  const rows = csvText.split(/\r?\n/);
+
+  for (const row of rows) {
+    if (!row.trim()) continue;
+
+    const fields: string[] = [];
+    let currentField = "";
+    let insideQuotes = false;
+
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+
+      if (char === '"') {
+        // Handle escaped quotes ("")
+        if (insideQuotes && row[i + 1] === '"') {
+          currentField += '"';
+          i++; // Skip next quote
+        } else {
+          insideQuotes = !insideQuotes;
+        }
+      } else if (char === "," && !insideQuotes) {
+        // End of field
+        fields.push(currentField.trim());
+        currentField = "";
+      } else {
+        currentField += char;
+      }
+    }
+
+    // Add the last field
+    fields.push(currentField.trim());
+    lines.push(fields);
+  }
+
+  return lines;
+};
 
 // ==================== Add Student Modal ====================
 
@@ -510,14 +555,18 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [csvData, setCsvData] = useState("");
-  const [createLoginAccounts, setCreateLoginAccounts] = useState(false);
+  const [createLoginAccounts, setCreateLoginAccounts] = useState(true); // Default to true
   const [results, setResults] = useState<any>(null);
+  const [uploadMethod, setUploadMethod] = useState<"paste" | "file">("file");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [validationErrors, setValidationErrors] = useState<any[]>([]);
 
   const downloadTemplate = () => {
+    // Properly quote CSV values that contain commas
     const template = [
-      "Name,RollNumber,FatherName,ContactNumber,CNIC,Email,DateOfBirth,Gender,Address,ProgramId,SectionId,EnrollmentDate,Status",
-      "Ahmed Ali,123,Muhammad Ali,03001234567,1234567890123,ahmed@example.com,2005-01-15,Male,123 Main St,PROGRAM_ID_HERE,SECTION_ID_HERE,2024-01-15,Active",
-      "Sara Khan,124,Imran Khan,03009876543,3210987654321,sara@example.com,2006-03-20,Female,456 Park Ave,PROGRAM_ID_HERE,SECTION_ID_HERE,2024-01-15,Active",
+      "Student Name,Roll No,Father Name,Program,Class,Subject-Combination,Student Phone,Student CNIC/FORM-B,Email,Date of Birth,Gender,Address,Status",
+      '"Ahmed Ali",001,"Muhammad Ali","F.Sc. (Pre-Engineering)-Mathematics, Chemistry, Physics","1st Year","1st Shift - Mathematics, Chemistry, Physics",03001234567,12345-1234567-1,ahmed@example.com,2005-01-15,Male,"123 Main St",Active',
+      '"Sara Khan",002,"Imran Khan","F.Sc. (Pre-Medical)-Biology, Chemistry, Physics","1st Year","1st Shift - Biology, Chemistry, Physics",03009876543,32109-8765432-1,sara@example.com,2006-03-20,Female,"456 Park Ave",Active',
     ].join("\n");
 
     const blob = new Blob([template], { type: "text/csv" });
@@ -529,6 +578,49 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    if (!["csv", "xls", "xlsx"].includes(fileExtension || "")) {
+      error("Please upload a CSV or Excel file (.csv, .xls, .xlsx)");
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result as string;
+
+      if (fileExtension === "csv") {
+        setCsvData(content);
+      } else {
+        // For Excel files, we'll parse them using a library
+        try {
+          // Use xlsx library to parse Excel
+          const XLSX = await import("xlsx");
+          const workbook = XLSX.read(content, { type: "binary" });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const csvContent = XLSX.utils.sheet_to_csv(firstSheet);
+          setCsvData(csvContent);
+        } catch (err) {
+          error(
+            "Failed to parse Excel file. Please ensure it's a valid Excel file or use CSV format."
+          );
+        }
+      }
+    };
+
+    if (fileExtension === "csv") {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!csvData.trim()) {
@@ -538,46 +630,72 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
 
     setLoading(true);
     setResults(null);
+    setValidationErrors([]);
 
     try {
-      const lines = csvData.trim().split("\n");
-      const headers = lines[0].split(",").map((h) => h.trim());
+      // Use proper CSV parser that respects quoted values
+      const parsedLines = parseCSV(csvData.trim());
 
-      const students = lines.slice(1).map((line) => {
-        const values = line.split(",").map((v) => v.trim());
+      if (parsedLines.length < 2) {
+        error("CSV must contain headers and at least one data row");
+        setLoading(false);
+        return;
+      }
+
+      const headers = parsedLines[0].map((h) => h.trim());
+      const dataLines = parsedLines.slice(1);
+
+      const students = dataLines.map((values) => {
         const student: any = {};
 
         headers.forEach((header, index) => {
-          const key = header.toLowerCase().replace(/\s+/g, "");
-          const value = values[index] || "";
+          const value = (values[index] || "").trim();
 
-          const fieldMap: Record<string, string> = {
-            name: "name",
-            fullname: "name",
-            rollnumber: "rollNumber",
-            roll: "rollNumber",
-            fathername: "fatherName",
-            father: "fatherName",
-            contactnumber: "contactNumber",
-            phone: "contactNumber",
-            mobile: "contactNumber",
-            cnic: "cnic",
-            email: "email",
-            dateofbirth: "dateOfBirth",
-            dob: "dateOfBirth",
-            gender: "gender",
-            address: "address",
-            programid: "programId",
-            program: "programId",
-            sectionid: "sectionId",
-            section: "sectionId",
-            enrollmentdate: "enrollmentDate",
-            enrollment: "enrollmentDate",
-            status: "status",
+          // Map CSV headers to expected format
+          // Keep original CSV column names for /bulk-import-csv endpoint
+          const csvFieldMap: Record<string, string> = {
+            "Student Name": "Student Name",
+            studentname: "Student Name",
+            name: "Student Name",
+            "Roll No": "Roll No",
+            rollno: "Roll No",
+            rollnumber: "Roll No",
+            "Father Name": "Father Name",
+            fathername: "Father Name",
+            father: "Father Name",
+            Program: "Program",
+            program: "Program",
+            Class: "Class",
+            class: "Class",
+            year: "Class",
+            "Subject-Combination": "Subject-Combination",
+            subjectcombination: "Subject-Combination",
+            section: "Subject-Combination",
+            "Student Phone": "Student Phone",
+            studentphone: "Student Phone",
+            phone: "Student Phone",
+            contactnumber: "Student Phone",
+            "Student CNIC/FORM-B": "Student CNIC/FORM-B",
+            "studentcnic/form-b": "Student CNIC/FORM-B",
+            cnic: "Student CNIC/FORM-B",
+            Email: "Email",
+            email: "Email",
+            "Date of Birth": "Date of Birth",
+            dateofbirth: "Date of Birth",
+            dob: "Date of Birth",
+            Gender: "Gender",
+            gender: "Gender",
+            Address: "Address",
+            address: "Address",
+            Status: "Status",
+            status: "Status",
           };
 
-          const mappedKey = fieldMap[key];
-          if (mappedKey) {
+          const normalizedHeader = header.toLowerCase().replace(/\s+/g, "");
+          const mappedKey =
+            csvFieldMap[header] || csvFieldMap[normalizedHeader];
+
+          if (mappedKey && value) {
             student[mappedKey] = value;
           }
         });
@@ -597,7 +715,13 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
         return;
       }
 
-      const result = await collegeAdminStudentService.bulkImport(
+      console.log("Importing students (CSV format):", {
+        count: students.length,
+        createLoginAccounts,
+        sampleStudent: students[0],
+      });
+
+      const result = await collegeAdminStudentService.bulkImportCSV(
         students,
         createLoginAccounts
       );
@@ -614,7 +738,39 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
         error(`${result.summary.failed} student(s) failed to import`);
       }
     } catch (err: any) {
-      error(err?.response?.data?.message || "Bulk import failed");
+      console.error("Bulk import error:", err);
+
+      // Handle validation errors
+      if (err?.response?.status === 400 && err?.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        setValidationErrors(errors);
+
+        // Group errors by row/field
+        const errorMessages = errors
+          .map((e: any) => {
+            const field = e.field || "unknown";
+            const message = e.message || "Validation error";
+
+            // Extract row number from field path (e.g., "students[0].name" -> row 1)
+            const rowMatch = field.match(/students\[(\d+)\]/);
+            const rowNum = rowMatch ? parseInt(rowMatch[1]) + 1 : null;
+
+            if (rowNum) {
+              return `Row ${rowNum}: ${message} (${field.split(".").pop()})`;
+            }
+            return `${message} (${field})`;
+          })
+          .slice(0, 5) // Show first 5 errors
+          .join("\n");
+
+        error(
+          `Validation failed:\n${errorMessages}${
+            errors.length > 5 ? `\n...and ${errors.length - 5} more errors` : ""
+          }`
+        );
+      } else {
+        error(err?.response?.data?.message || "Bulk import failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -622,6 +778,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
 
   const handleReset = () => {
     setCsvData("");
+    setValidationErrors([]);
     setResults(null);
   };
 
@@ -675,55 +832,229 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
         <div className="p-6">
           {!results ? (
             <>
+              {/* Validation Errors Display */}
+              {validationErrors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-red-900 mb-2">
+                        Validation Errors Found
+                      </h3>
+                      <div className="space-y-1 text-sm text-red-800 max-h-48 overflow-y-auto">
+                        {validationErrors.map((err, idx) => {
+                          const field = err.field || "unknown";
+                          const message = err.message || "Validation error";
+
+                          // Extract row number from field path
+                          const rowMatch = field.match(/students\[(\d+)\]/);
+                          const rowNum = rowMatch
+                            ? parseInt(rowMatch[1]) + 1
+                            : null;
+                          const fieldName = field.split(".").pop();
+
+                          return (
+                            <div key={idx} className="flex items-start gap-2">
+                              <span className="text-red-600 font-mono text-xs">
+                                •
+                              </span>
+                              <span>
+                                {rowNum ? (
+                                  <>
+                                    <strong>Row {rowNum}</strong>: {message}
+                                    <span className="text-red-600">
+                                      {" "}
+                                      ({fieldName})
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {message}{" "}
+                                    <span className="text-red-600">
+                                      ({field})
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {validationErrors.length > 10 && (
+                        <p className="text-xs text-red-700 mt-2">
+                          Showing first 10 errors. Total:{" "}
+                          {validationErrors.length} errors
+                        </p>
+                      )}
+                      <button
+                        onClick={() => setValidationErrors([])}
+                        className="mt-3 text-xs text-red-700 hover:text-red-900 underline"
+                      >
+                        Clear errors
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-blue-900">
-                    CSV Format Guide
-                  </h3>
+                  <h3 className="font-semibold text-blue-900">Import Guide</h3>
                   <button
                     type="button"
                     onClick={downloadTemplate}
                     className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    Download Template
+                    Download CSV Template
                   </button>
                 </div>
                 <p className="text-sm text-blue-800 mb-2">
-                  Required columns: Name, RollNumber, FatherName, ProgramId,
-                  SectionId
+                  Required columns: Student Name, Roll No, Father Name, Program
+                </p>
+                <p className="text-xs text-blue-700 mb-2">
+                  Optional: Class, Subject-Combination, Student Phone, Student
+                  CNIC/FORM-B, Email, Date of Birth, Gender, Address, Status
+                </p>
+                <p className="text-xs text-blue-700 mb-2">
+                  Program format: "F.Sc. (Pre-Engineering)-Mathematics,
+                  Chemistry, Physics" (use commas to separate subjects)
                 </p>
                 <p className="text-xs text-blue-700">
-                  Optional: ContactNumber, CNIC, Email, DateOfBirth, Gender,
-                  Address, EnrollmentDate, Status
+                  Supported formats: CSV (.csv), Excel (.xls, .xlsx)
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+              {/* Upload Method Tabs */}
+              <div className="mb-6">
+                <div className="flex border-b border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setUploadMethod("file")}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      uploadMethod === "file"
+                        ? "border-blue-600 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Upload File (CSV/Excel)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUploadMethod("paste")}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      uploadMethod === "paste"
+                        ? "border-blue-600 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
                     Paste CSV Data
-                  </label>
-                  <textarea
-                    value={csvData}
-                    onChange={(e) => setCsvData(e.target.value)}
-                    rows={10}
-                    placeholder="Name,RollNumber,FatherName,ProgramId,SectionId&#10;Ahmed Ali,123,Muhammad Ali,PROGRAM_ID,SECTION_ID"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                  />
+                  </button>
                 </div>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                {uploadMethod === "file" ? (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload File
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex-1 flex flex-col items-center px-4 py-6 bg-white border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                        <svg
+                          className="w-12 h-12 text-gray-400 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <span className="text-sm text-gray-600">
+                          {selectedFile
+                            ? selectedFile.name
+                            : "Click to upload CSV or Excel file"}
+                        </span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          Supports: .csv, .xls, .xlsx
+                        </span>
+                        <input
+                          type="file"
+                          accept=".csv,.xls,.xlsx"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    {selectedFile && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        File loaded: {selectedFile.name}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Paste CSV Data
+                    </label>
+                    <textarea
+                      value={csvData}
+                      onChange={(e) => setCsvData(e.target.value)}
+                      rows={10}
+                      placeholder="name,rollNumber,fatherName,programId,sectionId&#10;Ahmed Ali,123,Muhammad Ali,PROGRAM_ID,SECTION_ID"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                    />
+                  </div>
+                )}
 
                 <div className="mb-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={createLoginAccounts}
-                      onChange={(e) => setCreateLoginAccounts(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Create login accounts for all students
-                    </span>
-                  </label>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={createLoginAccounts}
+                        onChange={(e) =>
+                          setCreateLoginAccounts(e.target.checked)
+                        }
+                        className="w-4 h-4 text-green-600 rounded"
+                      />
+                      <span className="text-sm font-medium text-green-900">
+                        Create login accounts for all students
+                        <span className="text-green-700 font-normal ml-1">
+                          (Recommended - generates
+                          rollnumber@collegecode.edu.pk)
+                        </span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3">
@@ -952,17 +1283,22 @@ const StudentsPage: React.FC = () => {
         ]);
         setPrograms(programsData);
         setSections(sectionsData);
-        
+
         // Log for debugging
         console.log("Fetched programs:", programsData.length);
         console.log("Fetched sections:", sectionsData.length);
-        
+
         if (programsData.length === 0 || sectionsData.length === 0) {
-          error("Warning: No programs or sections found. Please ensure you have programs and sections configured in your college.");
+          error(
+            "Warning: No programs or sections found. Please ensure you have programs and sections configured in your college."
+          );
         }
       } catch (err: any) {
         console.error("Error fetching programs/sections:", err);
-        error(err?.response?.data?.message || "Failed to fetch programs and sections");
+        error(
+          err?.response?.data?.message ||
+            "Failed to fetch programs and sections"
+        );
       }
     };
 

@@ -21,7 +21,7 @@ export const collegeAdminSectionService = {
     try {
       const response = await api.get("/college-admin/statistics/sections");
       const sections = response.data.data || [];
-      
+
       // Map statistics data to Section interface
       return sections.map((sec: any) => ({
         _id: sec._id,

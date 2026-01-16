@@ -21,7 +21,7 @@ export const collegeAdminProgramService = {
     try {
       const response = await api.get("/college-admin/statistics/programs");
       const programs = response.data.data || [];
-      
+
       // Map statistics data to Program interface
       return programs.map((prog: any) => ({
         _id: prog._id,

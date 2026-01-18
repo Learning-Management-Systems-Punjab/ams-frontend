@@ -54,7 +54,7 @@ const SectionModal: React.FC<SectionModalProps> = ({
         programId: editSection.programId,
         year: editSection.year,
         shift: editSection.shift,
-        rollNumberRange: editSection.rollNumberRange,
+        rollNumberRange: editSection.rollNumberRange || { start: 1, end: 50 },
         subjects: editSection.subjects,
         capacity: editSection.capacity,
       });
@@ -79,7 +79,11 @@ const SectionModal: React.FC<SectionModalProps> = ({
       return;
     }
 
-    if (formData.rollNumberRange.start >= formData.rollNumberRange.end) {
+    if (
+      formData.rollNumberRange?.start &&
+      formData.rollNumberRange?.end &&
+      formData.rollNumberRange.start >= formData.rollNumberRange.end
+    ) {
       error("End roll number must be greater than start roll number");
       return;
     }
@@ -213,12 +217,12 @@ const SectionModal: React.FC<SectionModalProps> = ({
                   type="number"
                   required
                   min="1"
-                  value={formData.rollNumberRange.start}
+                  value={formData.rollNumberRange?.start || 1}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
                       rollNumberRange: {
-                        ...formData.rollNumberRange,
+                        ...(formData.rollNumberRange || { start: 1, end: 50 }),
                         start: parseInt(e.target.value),
                       },
                     })
@@ -235,12 +239,12 @@ const SectionModal: React.FC<SectionModalProps> = ({
                   type="number"
                   required
                   min="1"
-                  value={formData.rollNumberRange.end}
+                  value={formData.rollNumberRange?.end || 50}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
                       rollNumberRange: {
-                        ...formData.rollNumberRange,
+                        ...(formData.rollNumberRange || { start: 1, end: 50 }),
                         end: parseInt(e.target.value),
                       },
                     })

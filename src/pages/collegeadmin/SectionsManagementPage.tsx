@@ -1327,8 +1327,8 @@ const SectionsManagementPage: React.FC = () => {
                         />
                       </svg>
                       <span>
-                        Roll: {section.rollNumberRange.start} -{" "}
-                        {section.rollNumberRange.end}
+                        Roll: {section.rollNumberRange?.start || 1} -{" "}
+                        {section.rollNumberRange?.end || 50}
                       </span>
                     </div>
 

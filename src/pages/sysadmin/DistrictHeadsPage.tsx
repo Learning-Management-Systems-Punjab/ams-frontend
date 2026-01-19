@@ -43,6 +43,8 @@ const DistrictHeadsPage: React.FC = () => {
   const [showPasswordResetConfirm, setShowPasswordResetConfirm] =
     useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
   const { success, error: showError } = useToast();
@@ -153,12 +155,12 @@ const DistrictHeadsPage: React.FC = () => {
         selectedDistrictHead._id
       );
 
-      // Show success with password in console (more secure)
-      console.log("New Password:", response.newPassword);
-      success(
-        `Password reset successful! New password: ${response.newPassword}. Check console for details.`
-      );
+      // Store the new password and show modal
+      setNewPassword(response.newPassword);
       setShowPasswordResetConfirm(false);
+      setShowPasswordModal(true);
+
+      success("Password reset successful!");
     } catch (err: any) {
       console.error("Failed to reset password:", err);
       showError(err.response?.data?.message || "Failed to reset password");
@@ -534,6 +536,98 @@ const DistrictHeadsPage: React.FC = () => {
                 isLoading={resetPasswordLoading}
               >
                 Reset Password
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Display Modal */}
+      {showPasswordModal && selectedDistrictHead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Password Reset Successful
+                </h3>
+                <p className="text-sm text-gray-500">
+                  New credentials for {selectedDistrictHead.name}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Email
+                  </label>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedDistrictHead.email);
+                      success("Email copied to clipboard!");
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div className="text-base font-mono text-gray-900 bg-white rounded border border-blue-200 px-3 py-2">
+                  {selectedDistrictHead.email}
+                </div>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    New Password
+                  </label>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(newPassword);
+                      success("Password copied to clipboard!");
+                    }}
+                    className="text-xs text-green-600 hover:text-green-700 font-medium"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div className="text-lg font-mono font-bold text-gray-900 bg-white rounded border border-green-200 px-3 py-2 break-all">
+                  {newPassword}
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-800">
+                  <strong>Important:</strong> Please copy and save these
+                  credentials securely. The password will not be shown again.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const credentials = `Email: ${selectedDistrictHead.email}\nPassword: ${newPassword}`;
+                  navigator.clipboard.writeText(credentials);
+                  success("Both credentials copied to clipboard!");
+                }}
+              >
+                Copy Both
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setNewPassword("");
+                  setSelectedDistrictHead(null);
+                }}
+              >
+                Done
               </Button>
             </div>
           </div>

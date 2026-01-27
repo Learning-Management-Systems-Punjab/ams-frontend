@@ -65,7 +65,7 @@ interface AddStudentModalProps {
   onClose: () => void;
   onSuccess: () => void;
   onShowCredentials: (
-    credentials: StudentCredentials & { name: string; rollNumber: string }
+    credentials: StudentCredentials & { name: string; rollNumber: string },
   ) => void;
   success: (message: string) => void;
   error: (message: string) => void;
@@ -608,7 +608,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
           setCsvData(csvContent);
         } catch (err) {
           error(
-            "Failed to parse Excel file. Please ensure it's a valid Excel file or use CSV format."
+            "Failed to parse Excel file. Please ensure it's a valid Excel file or use CSV format.",
           );
         }
       }
@@ -723,13 +723,13 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
 
       const result = await collegeAdminStudentService.bulkImportCSV(
         students,
-        createLoginAccounts
+        createLoginAccounts,
       );
       setResults(result);
 
       if (result.summary.successful > 0) {
         success(
-          `Successfully imported ${result.summary.successful} student(s)`
+          `Successfully imported ${result.summary.successful} student(s)`,
         );
         onSuccess();
       }
@@ -766,7 +766,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
         error(
           `Validation failed:\n${errorMessages}${
             errors.length > 5 ? `\n...and ${errors.length - 5} more errors` : ""
-          }`
+          }`,
         );
       } else {
         error(err?.response?.data?.message || "Bulk import failed");
@@ -794,7 +794,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
           ? `${r.row},${r.rollNumber},${r.name},${
               r.credentials?.loginEmail || ""
             },${r.credentials?.password || ""}`
-          : `${r.row},${r.rollNumber},${r.name}`
+          : `${r.row},${r.rollNumber},${r.name}`,
       ),
     ].join("\n");
 
@@ -931,9 +931,29 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
                   Program format: "F.Sc. (Pre-Engineering)-Mathematics,
                   Chemistry, Physics" (use commas to separate subjects)
                 </p>
-                <p className="text-xs text-blue-700">
+                <p className="text-xs text-blue-700 mb-2">
                   Supported formats: CSV (.csv), Excel (.xls, .xlsx)
                 </p>
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <p className="text-xs text-blue-800 font-medium">
+                    📋 Import Workflow:
+                  </p>
+                  <ul className="text-xs text-blue-700 mt-1 ml-4 list-disc">
+                    <li>Programs will be auto-created if they don't exist</li>
+                    <li>
+                      Subjects mentioned in Subject-Combination will be
+                      auto-created
+                    </li>
+                    <li>
+                      <strong>Sections will NOT be created</strong> - students
+                      imported without section assignment
+                    </li>
+                    <li>
+                      After import, go to <strong>Sections</strong> page to
+                      create sections and assign students
+                    </li>
+                  </ul>
+                </div>
               </div>
 
               {/* Upload Method Tabs */}
@@ -1061,7 +1081,8 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    disabled={loading}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1073,11 +1094,74 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
                     {loading ? "Importing..." : "Import Students"}
                   </button>
                 </div>
+
+                {/* Loading Overlay */}
+                {loading && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4">
+                      <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          Importing Students...
+                        </h3>
+                        <p className="text-sm text-gray-600 text-center mb-2">
+                          This may take a few minutes for large imports.
+                        </p>
+                        <p className="text-xs text-gray-500 text-center">
+                          Please do not close this window or navigate away.
+                        </p>
+                        <div className="mt-4 flex items-center gap-2 text-sm text-blue-600">
+                          <svg
+                            className="w-4 h-4 animate-pulse"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Creating programs, subjects & student records...
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </form>
             </>
           ) : (
             <>
               <div className="space-y-6">
+                {/* Import Summary Note */}
+                {results.summary?.note && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <svg
+                        className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                      <div>
+                        <h4 className="font-semibold text-amber-900">
+                          Next Steps
+                        </h4>
+                        <p className="text-sm text-amber-800 mt-1">
+                          {results.summary.note}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="text-2xl font-bold text-blue-900">
@@ -1098,6 +1182,57 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({
                     <div className="text-sm text-red-700">Failed</div>
                   </div>
                 </div>
+
+                {/* Programs & Subjects Created */}
+                {(results.programs?.created?.length > 0 ||
+                  results.subjects?.created?.length > 0) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {results.programs?.created?.length > 0 && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-purple-900 mb-2">
+                          Programs Created ({results.programs.created.length})
+                        </h4>
+                        <div className="space-y-1 text-sm text-purple-800 max-h-32 overflow-y-auto">
+                          {results.programs.created.map(
+                            (p: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2"
+                              >
+                                <span className="font-mono text-xs bg-purple-200 px-1 rounded">
+                                  {p.code}
+                                </span>
+                                <span>{p.name}</span>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {results.subjects?.created?.length > 0 && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-indigo-900 mb-2">
+                          Subjects Created ({results.subjects.created.length})
+                        </h4>
+                        <div className="space-y-1 text-sm text-indigo-800 max-h-32 overflow-y-auto">
+                          {results.subjects.created.map(
+                            (s: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2"
+                              >
+                                <span className="font-mono text-xs bg-indigo-200 px-1 rounded">
+                                  {s.code}
+                                </span>
+                                <span>{s.name}</span>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {results.results.successful.length > 0 && (
                   <div>
@@ -1290,14 +1425,14 @@ const StudentsPage: React.FC = () => {
 
         if (programsData.length === 0 || sectionsData.length === 0) {
           error(
-            "Warning: No programs or sections found. Please ensure you have programs and sections configured in your college."
+            "Warning: No programs or sections found. Please ensure you have programs and sections configured in your college.",
           );
         }
       } catch (err: any) {
         console.error("Error fetching programs/sections:", err);
         error(
           err?.response?.data?.message ||
-            "Failed to fetch programs and sections"
+            "Failed to fetch programs and sections",
         );
       }
     };
@@ -1334,7 +1469,7 @@ const StudentsPage: React.FC = () => {
               s.contactNumber || ""
             },${s.cnic || ""},${s.email || ""},${s.loginEmail || ""},${
               s.program
-            },${s.section},${s.year},${s.shift},${s.status},${s.enrollmentDate}`
+            },${s.section},${s.year},${s.shift},${s.status},${s.enrollmentDate}`,
         ),
       ].join("\n");
 
@@ -1353,6 +1488,40 @@ const StudentsPage: React.FC = () => {
 
   return (
     <div className="p-4">
+      {/* Workflow Tip Banner */}
+      <div className="mb-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-green-800">
+              <strong>Step 3 of 5:</strong> Add students and assign them to
+              sections. You can also manage students from the{" "}
+              <a
+                href="/collegeadmin/sections"
+                className="font-medium underline hover:text-green-900"
+              >
+                Sections page
+              </a>{" "}
+              by clicking "Students" on any section card.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Student Management</h1>
@@ -1580,12 +1749,14 @@ const StudentsPage: React.FC = () => {
                       {student.fatherName}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {typeof student.programId === "object"
+                      {typeof student.programId === "object" &&
+                      student.programId
                         ? student.programId.name
                         : "N/A"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {typeof student.sectionId === "object"
+                      {typeof student.sectionId === "object" &&
+                      student.sectionId
                         ? `${student.sectionId.name} - ${student.sectionId.year}`
                         : "N/A"}
                     </td>
@@ -1595,10 +1766,10 @@ const StudentsPage: React.FC = () => {
                           student.status === "Active"
                             ? "bg-green-100 text-green-800"
                             : student.status === "Graduated"
-                            ? "bg-blue-100 text-blue-800"
-                            : student.status === "Inactive"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
+                              ? "bg-blue-100 text-blue-800"
+                              : student.status === "Inactive"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
                         }`}
                       >
                         {student.status}
@@ -1653,10 +1824,10 @@ const StudentsPage: React.FC = () => {
                     totalPages <= 5
                       ? i + 1
                       : page <= 3
-                      ? i + 1
-                      : page >= totalPages - 2
-                      ? totalPages - 4 + i
-                      : page - 2 + i;
+                        ? i + 1
+                        : page >= totalPages - 2
+                          ? totalPages - 4 + i
+                          : page - 2 + i;
                   return (
                     <button
                       key={pageNum}

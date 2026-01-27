@@ -50,12 +50,21 @@ const collegeAdminSubjectService = {
    */
   getAll: async (
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<SubjectListResponse> => {
     const response = await api.get("/college-admin/subjects", {
       params: { page, limit },
     });
-    return response.data.data;
+
+    // Map backend response to frontend expected format
+    const data = response.data.data;
+    return {
+      subjects: data.subjects || [],
+      currentPage: data.pagination?.page || page,
+      totalPages: data.pagination?.pages || 1,
+      totalSubjects: data.pagination?.total || 0,
+      limit: data.pagination?.limit || limit,
+    };
   },
 
   /**
@@ -71,11 +80,11 @@ const collegeAdminSubjectService = {
    */
   update: async (
     subjectId: string,
-    data: UpdateSubjectDto
+    data: UpdateSubjectDto,
   ): Promise<Subject> => {
     const response = await api.put(
       `/college-admin/subjects/${subjectId}`,
-      data
+      data,
     );
     return response.data.data;
   },
@@ -93,7 +102,7 @@ const collegeAdminSubjectService = {
   search: async (
     query: string,
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<SubjectListResponse> => {
     const response = await api.get("/college-admin/subjects", {
       params: { page, limit, search: query },

@@ -17,7 +17,7 @@ import { useToast } from "../../hooks/useToast";
 import { ToastContainer } from "../../components/ui/Toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-type AttendanceStatus = "Present" | "Absent" | "Late" | "Leave" | "Excused";
+type AttendanceStatus = "Present" | "Absent" | "Late" | "Leave";
 
 interface StudentAttendance extends AttendanceSheetStudent {
   status: AttendanceStatus;
@@ -32,13 +32,13 @@ const TeacherMarkAttendancePage: React.FC = () => {
   const [sections, setSections] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedSection, setSelectedSection] = useState(
-    searchParams.get("section") || ""
+    searchParams.get("section") || "",
   );
   const [selectedSubject, setSelectedSubject] = useState(
-    searchParams.get("subject") || ""
+    searchParams.get("subject") || "",
   );
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [period, setPeriod] = useState("");
   const [students, setStudents] = useState<StudentAttendance[]>([]);
@@ -76,7 +76,7 @@ const TeacherMarkAttendancePage: React.FC = () => {
       const response = await teacherPortalService.generateAttendanceSheet(
         selectedSection,
         selectedSubject,
-        selectedDate
+        selectedDate,
       );
 
       const studentsWithStatus: StudentAttendance[] = response.students.map(
@@ -84,7 +84,7 @@ const TeacherMarkAttendancePage: React.FC = () => {
           ...student,
           status: "Present" as AttendanceStatus,
           remarks: "",
-        })
+        }),
       );
 
       setStudents(studentsWithStatus);
@@ -98,7 +98,7 @@ const TeacherMarkAttendancePage: React.FC = () => {
       }
     } catch (err: any) {
       error(
-        err?.response?.data?.message || "Failed to generate attendance sheet"
+        err?.response?.data?.message || "Failed to generate attendance sheet",
       );
     } finally {
       setLoading(false);
@@ -107,13 +107,13 @@ const TeacherMarkAttendancePage: React.FC = () => {
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     setStudents((prev) =>
-      prev.map((s) => (s._id === studentId ? { ...s, status } : s))
+      prev.map((s) => (s._id === studentId ? { ...s, status } : s)),
     );
   };
 
   const handleRemarksChange = (studentId: string, remarks: string) => {
     setStudents((prev) =>
-      prev.map((s) => (s._id === studentId ? { ...s, remarks } : s))
+      prev.map((s) => (s._id === studentId ? { ...s, remarks } : s)),
     );
   };
 
@@ -165,8 +165,6 @@ const TeacherMarkAttendancePage: React.FC = () => {
         return "bg-yellow-100 text-yellow-800 border-yellow-300";
       case "Leave":
         return "bg-blue-100 text-blue-800 border-blue-300";
-      case "Excused":
-        return "bg-purple-100 text-purple-800 border-purple-300";
     }
   };
 
@@ -180,15 +178,13 @@ const TeacherMarkAttendancePage: React.FC = () => {
         return <Clock className="w-4 h-4" />;
       case "Leave":
         return <FileText className="w-4 h-4" />;
-      case "Excused":
-        return <FileText className="w-4 h-4" />;
     }
   };
 
   const filteredStudents = students.filter(
     (student) =>
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const statusCounts = {
@@ -196,7 +192,6 @@ const TeacherMarkAttendancePage: React.FC = () => {
     Absent: students.filter((s) => s.status === "Absent").length,
     Late: students.filter((s) => s.status === "Late").length,
     Leave: students.filter((s) => s.status === "Leave").length,
-    Excused: students.filter((s) => s.status === "Excused").length,
   };
 
   return (
@@ -244,8 +239,8 @@ const TeacherMarkAttendancePage: React.FC = () => {
                   <option value="">Select Section</option>
                   {sections.map((section) => (
                     <option key={section._id} value={section._id}>
-                      {section.name} - {section.program.name} ({section.year}{" "}
-                      Year)
+                      {section.name} - {section.program?.name || "N/A"} (
+                      {section.year} Year)
                     </option>
                   ))}
                 </select>
@@ -361,7 +356,7 @@ const TeacherMarkAttendancePage: React.FC = () => {
                 <div
                   key={status}
                   className={`rounded-lg p-4 border-2 ${getStatusColor(
-                    status as AttendanceStatus
+                    status as AttendanceStatus,
                   )}`}
                 >
                   <div className="flex items-center justify-between">
@@ -428,7 +423,6 @@ const TeacherMarkAttendancePage: React.FC = () => {
                             "Absent",
                             "Late",
                             "Leave",
-                            "Excused",
                           ] as AttendanceStatus[]
                         ).map((status) => (
                           <button
@@ -510,8 +504,8 @@ const TeacherMarkAttendancePage: React.FC = () => {
             </li>
             <li>• All students are marked "Present" by default</li>
             <li>
-              • Click status buttons: P (Present), A (Absent), L (Late), V
-              (Leave), E (Excused)
+              • Click status buttons: P (Present), A (Absent), L (Late), L
+              (Leave)
             </li>
             <li>
               • Use "Mark All Present" or "Mark All Absent" for quick actions

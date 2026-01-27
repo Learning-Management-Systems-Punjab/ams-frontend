@@ -106,9 +106,9 @@ export const Login: React.FC = () => {
               <GraduationCap className="w-8 h-8 text-primary-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">AMS</h1>
+              <h1 className="text-2xl font-bold text-white">LMS</h1>
               <p className="text-primary-100 text-sm">
-                Attendance Management System
+                Learning Management System
               </p>
             </div>
           </div>

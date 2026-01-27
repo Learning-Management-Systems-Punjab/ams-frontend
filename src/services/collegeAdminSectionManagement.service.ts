@@ -121,13 +121,22 @@ const collegeAdminSectionManagementService = {
    * Get all sections with pagination and filters
    */
   getAll: async (
-    filters: SectionFilters = {}
+    filters: SectionFilters = {},
   ): Promise<SectionListResponse> => {
     const { page = 1, limit = 50, ...rest } = filters;
     const response = await api.get("/college-admin/sections", {
       params: { page, limit, ...rest },
     });
-    return response.data.data;
+
+    // Map backend response to frontend expected format
+    const data = response.data.data;
+    return {
+      sections: data.sections || [],
+      currentPage: data.pagination?.page || page,
+      totalPages: data.pagination?.pages || 1,
+      totalSections: data.pagination?.total || 0,
+      limit: data.pagination?.limit || limit,
+    };
   },
 
   /**
@@ -143,11 +152,11 @@ const collegeAdminSectionManagementService = {
    */
   update: async (
     sectionId: string,
-    data: UpdateSectionDto
+    data: UpdateSectionDto,
   ): Promise<Section> => {
     const response = await api.put(
       `/college-admin/sections/${sectionId}`,
-      data
+      data,
     );
     return response.data.data;
   },
@@ -164,11 +173,11 @@ const collegeAdminSectionManagementService = {
    * Creates multiple sections and automatically assigns students
    */
   splitByRollRanges: async (
-    data: SplitSectionsDto
+    data: SplitSectionsDto,
   ): Promise<SplitSectionsResult> => {
     const response = await api.post(
       "/college-admin/sections/split-by-roll-ranges",
-      data
+      data,
     );
     return response.data.data;
   },

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   GraduationCap,
@@ -10,6 +11,10 @@ import {
   UserX,
   Percent,
   BarChart3,
+  ArrowRight,
+  CheckCircle2,
+  Layers,
+  UserCog,
 } from "lucide-react";
 import { useAppSelector } from "../../store/hooks";
 import { StatCard } from "../../components/ui/StatCard";
@@ -25,8 +30,9 @@ import {
 
 export const CollegeAdminDashboard: React.FC = () => {
   const { profile } = useAppSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [quickStats, setQuickStats] = useState<CollegeAdminQuickStats | null>(
-    null
+    null,
   );
   const [dashboardStats, setDashboardStats] =
     useState<CollegeAdminDashboardStats | null>(null);
@@ -61,7 +67,7 @@ export const CollegeAdminDashboard: React.FC = () => {
       console.error("Error fetching statistics:", err);
       error(
         err.response?.data?.message ||
-          "Failed to load dashboard statistics. Please try again."
+          "Failed to load dashboard statistics. Please try again.",
       );
       // Set empty/default values on error
       setProgramStats([]);
@@ -155,6 +161,130 @@ export const CollegeAdminDashboard: React.FC = () => {
           isLoading={loading}
           subtitle="Total subjects"
         />
+      </div>
+
+      {/* Setup Workflow Guide */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <CheckCircle2 className="w-5 h-5 mr-2 text-blue-600" />
+            Quick Setup Guide
+          </h3>
+          <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full">
+            Follow these steps to set up your college
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Step 1: Subjects */}
+          <button
+            onClick={() => navigate("/collegeadmin/subjects")}
+            className="relative p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-md transition-all group text-left"
+          >
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              1
+            </div>
+            <BookOpen className="w-8 h-8 text-blue-600 mb-2" />
+            <h4 className="font-semibold text-gray-900 text-sm">
+              Create Subjects
+            </h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Add courses/subjects that will be taught
+            </p>
+            <div className="flex items-center mt-2 text-blue-600 text-xs font-medium group-hover:translate-x-1 transition-transform">
+              Manage <ArrowRight className="w-3 h-3 ml-1" />
+            </div>
+          </button>
+
+          {/* Step 2: Sections */}
+          <button
+            onClick={() => navigate("/collegeadmin/sections")}
+            className="relative p-4 bg-white rounded-lg border-2 border-orange-200 hover:border-orange-400 hover:shadow-md transition-all group text-left"
+          >
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              2
+            </div>
+            <Layers className="w-8 h-8 text-orange-600 mb-2" />
+            <h4 className="font-semibold text-gray-900 text-sm">
+              Create Sections
+            </h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Create sections and assign subjects to them
+            </p>
+            <div className="flex items-center mt-2 text-orange-600 text-xs font-medium group-hover:translate-x-1 transition-transform">
+              Manage <ArrowRight className="w-3 h-3 ml-1" />
+            </div>
+          </button>
+
+          {/* Step 3: Students */}
+          <button
+            onClick={() => navigate("/collegeadmin/students")}
+            className="relative p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 hover:shadow-md transition-all group text-left"
+          >
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              3
+            </div>
+            <GraduationCap className="w-8 h-8 text-green-600 mb-2" />
+            <h4 className="font-semibold text-gray-900 text-sm">
+              Add Students
+            </h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Import or add students and assign to sections
+            </p>
+            <div className="flex items-center mt-2 text-green-600 text-xs font-medium group-hover:translate-x-1 transition-transform">
+              Manage <ArrowRight className="w-3 h-3 ml-1" />
+            </div>
+          </button>
+
+          {/* Step 4: Teacher Assignments */}
+          <button
+            onClick={() => navigate("/collegeadmin/teacher-assignments")}
+            className="relative p-4 bg-white rounded-lg border-2 border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group text-left"
+          >
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              4
+            </div>
+            <UserCog className="w-8 h-8 text-purple-600 mb-2" />
+            <h4 className="font-semibold text-gray-900 text-sm">
+              Assign Teachers
+            </h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Assign teachers to subject + section pairs
+            </p>
+            <div className="flex items-center mt-2 text-purple-600 text-xs font-medium group-hover:translate-x-1 transition-transform">
+              Manage <ArrowRight className="w-3 h-3 ml-1" />
+            </div>
+          </button>
+
+          {/* Step 5: Attendance */}
+          <button
+            onClick={() => navigate("/collegeadmin/attendance-statistics")}
+            className="relative p-4 bg-white rounded-lg border-2 border-emerald-200 hover:border-emerald-400 hover:shadow-md transition-all group text-left"
+          >
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              5
+            </div>
+            <UserCheck className="w-8 h-8 text-emerald-600 mb-2" />
+            <h4 className="font-semibold text-gray-900 text-sm">
+              Track Attendance
+            </h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Teachers mark, students view attendance
+            </p>
+            <div className="flex items-center mt-2 text-emerald-600 text-xs font-medium group-hover:translate-x-1 transition-transform">
+              View Stats <ArrowRight className="w-3 h-3 ml-1" />
+            </div>
+          </button>
+        </div>
+
+        <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+          <p className="text-xs text-blue-800">
+            <strong>Tip:</strong> Follow the steps in order: Create subjects →
+            Create sections (assign subjects) → Add students (assign to
+            sections) → Assign teachers to subject+section → Teachers can mark
+            attendance, students can view theirs.
+          </p>
+        </div>
       </div>
 
       {/* Detailed Student Statistics */}

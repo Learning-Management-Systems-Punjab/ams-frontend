@@ -34,7 +34,7 @@ export const SectionDetailsPage: React.FC = () => {
     } catch (error: any) {
       showToast(
         error.response?.data?.message || "Failed to load section details",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -108,76 +108,80 @@ export const SectionDetailsPage: React.FC = () => {
       </div>
 
       {/* Program Details */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Program Information
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Award className="w-4 h-4" />
-              <span className="text-sm font-medium">Program Name</span>
+      {section.program && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Program Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Award className="w-4 h-4" />
+                <span className="text-sm font-medium">Program Name</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {section.program.name}
+              </p>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
-              {section.program.name}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <BookOpen className="w-4 h-4" />
-              <span className="text-sm font-medium">Program Code</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <BookOpen className="w-4 h-4" />
+                <span className="text-sm font-medium">Program Code</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {section.program.code}
+              </p>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
-              {section.program.code}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm font-medium">Duration</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Calendar className="w-4 h-4" />
+                <span className="text-sm font-medium">Duration</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {section.program.duration} Years ({section.program.level})
+              </p>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
-              {section.program.duration} Years ({section.program.level})
-            </p>
           </div>
         </div>
-      </div>
+      )}
 
       {/* College Details */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          College Information
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Building2 className="w-4 h-4" />
-              <span className="text-sm font-medium">College Name</span>
+      {section.college && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            College Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Building2 className="w-4 h-4" />
+                <span className="text-sm font-medium">College Name</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {section.college.name}
+              </p>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
-              {section.college.name}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Award className="w-4 h-4" />
-              <span className="text-sm font-medium">College Code</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Award className="w-4 h-4" />
+                <span className="text-sm font-medium">College Code</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {section.college.code}
+              </p>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
-              {section.college.code}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Building2 className="w-4 h-4" />
-              <span className="text-sm font-medium">City</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Building2 className="w-4 h-4" />
+                <span className="text-sm font-medium">City</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {section.college.city}
+              </p>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
-              {section.college.city}
-            </p>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Subjects */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -212,8 +216,8 @@ export const SectionDetailsPage: React.FC = () => {
                     subject.type === "Theory"
                       ? "bg-blue-100 text-blue-700"
                       : subject.type === "Lab"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-purple-100 text-purple-700"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-purple-100 text-purple-700"
                   }`}
                 >
                   {subject.type}

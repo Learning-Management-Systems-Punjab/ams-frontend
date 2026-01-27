@@ -262,7 +262,7 @@ const SubjectsManagementPage: React.FC = () => {
     try {
       const response = await collegeAdminSubjectService.getAll(
         currentPage,
-        limit
+        limit,
       );
       setSubjects(response.subjects);
       setTotalPages(response.totalPages);
@@ -285,7 +285,7 @@ const SubjectsManagementPage: React.FC = () => {
       const response = await collegeAdminSubjectService.search(
         searchQuery,
         currentPage,
-        limit
+        limit,
       );
       setSubjects(response.subjects);
       setTotalPages(response.totalPages);
@@ -328,13 +328,47 @@ const SubjectsManagementPage: React.FC = () => {
     ? subjects.filter(
         (subject) =>
           subject.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          subject.code.toLowerCase().includes(searchQuery.toLowerCase())
+          subject.code.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : subjects;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Workflow Tip Banner */}
+      <div className="max-w-7xl mx-auto mb-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-blue-800">
+              <strong>Step 1 of 5:</strong> Create subjects/courses first. Then
+              go to{" "}
+              <a
+                href="/collegeadmin/sections"
+                className="font-medium underline hover:text-blue-900"
+              >
+                Sections
+              </a>{" "}
+              to assign them to sections.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6">
@@ -596,7 +630,7 @@ const SubjectsManagementPage: React.FC = () => {
                       >
                         {page}
                       </button>
-                    )
+                    ),
                   )}
                 </div>
                 <button

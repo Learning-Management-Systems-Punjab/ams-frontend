@@ -46,7 +46,7 @@ export const TeacherDashboard: React.FC = () => {
       // Calculate today's classes
       const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
       const todayClasses = assignmentsRes.assignments.filter((assignment) =>
-        assignment.schedule?.some((s) => s.day === today)
+        assignment.schedule?.some((s) => s.day === today),
       ).length;
 
       setStats({
@@ -315,14 +315,14 @@ export const TeacherDashboard: React.FC = () => {
                             <Users className="w-4 h-4 text-gray-500" />
                             <p className="text-sm text-gray-700">
                               {assignment.section.name} -{" "}
-                              {assignment.section.program.name}
+                              {assignment.section.program?.name || "N/A"}
                             </p>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <span
                               className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSemesterBadgeColor(
-                                assignment.semester
+                                assignment.semester,
                               )}`}
                             >
                               {assignment.semester} {assignment.academicYear}
@@ -334,7 +334,7 @@ export const TeacherDashboard: React.FC = () => {
                       <button
                         onClick={() =>
                           navigate(
-                            `/teacher/mark-attendance?section=${assignment.section._id}&subject=${assignment.subject._id}`
+                            `/teacher/mark-attendance?section=${assignment.section._id}&subject=${assignment.subject._id}`,
                           )
                         }
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
@@ -343,7 +343,7 @@ export const TeacherDashboard: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                ))
+                )),
               )}
             </div>
           )}
@@ -377,7 +377,7 @@ export const TeacherDashboard: React.FC = () => {
                   </div>
                   <span
                     className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSemesterBadgeColor(
-                      assignment.semester
+                      assignment.semester,
                     )}`}
                   >
                     {assignment.semester}
@@ -402,7 +402,7 @@ export const TeacherDashboard: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <GraduationCap className="w-4 h-4 text-gray-500" />
                     <p className="text-sm text-gray-700">
-                      {assignment.section.program.name}
+                      {assignment.section.program?.name || "N/A"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -417,7 +417,7 @@ export const TeacherDashboard: React.FC = () => {
                 <button
                   onClick={() =>
                     navigate(
-                      `/teacher/mark-attendance?section=${assignment.section._id}&subject=${assignment.subject._id}`
+                      `/teacher/mark-attendance?section=${assignment.section._id}&subject=${assignment.subject._id}`,
                     )
                   }
                   className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors"

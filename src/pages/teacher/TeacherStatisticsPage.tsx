@@ -79,7 +79,7 @@ const StudentStatsView: React.FC<StudentStatsViewProps> = ({
 
             <div
               className={`rounded-lg p-4 border-2 ${getPercentageColor(
-                stats.stats.attendancePercentage
+                stats.stats.attendancePercentage,
               )}`}
             >
               <p className="text-sm mb-1">Attendance %</p>
@@ -187,16 +187,16 @@ const TeacherStatisticsPage: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedSection, setSelectedSection] = useState(
-    searchParams.get("section") || ""
+    searchParams.get("section") || "",
   );
   const [selectedSubject, setSelectedSubject] = useState(
-    searchParams.get("subject") || ""
+    searchParams.get("subject") || "",
   );
   const [startDate, setStartDate] = useState(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
   );
   const [endDate, setEndDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [studentStats, setStudentStats] =
     useState<StudentAttendanceStats | null>(null);
@@ -235,7 +235,7 @@ const TeacherStatisticsPage: React.FC = () => {
         {
           page: 1,
           limit: 500,
-        }
+        },
       );
       setStudents(response.students);
     } catch (err: any) {
@@ -257,7 +257,7 @@ const TeacherStatisticsPage: React.FC = () => {
           subjectId: selectedSubject || undefined,
           startDate,
           endDate,
-        }
+        },
       );
       setStudentStats(stats);
       setShowStats(true);
@@ -281,7 +281,7 @@ const TeacherStatisticsPage: React.FC = () => {
         selectedSection,
         selectedSubject,
         startDate,
-        endDate
+        endDate,
       );
       setSectionStats(stats);
       setShowStats(true);
@@ -437,7 +437,7 @@ const TeacherStatisticsPage: React.FC = () => {
                     <option value="">Select Section</option>
                     {sections.map((section) => (
                       <option key={section._id} value={section._id}>
-                        {section.name} - {section.program.name}
+                        {section.name} - {section.program?.name || "N/A"}
                       </option>
                     ))}
                   </select>
@@ -566,7 +566,7 @@ const TeacherStatisticsPage: React.FC = () => {
 
             <div
               className={`rounded-lg shadow-sm p-6 ${getPercentageColor(
-                sectionStats.overallStats.averageAttendance
+                sectionStats.overallStats.averageAttendance,
               )}`}
             >
               <p className="text-sm mb-1">Average Attendance</p>
@@ -648,7 +648,7 @@ const TeacherStatisticsPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span
                           className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getPercentageColor(
-                            student.attendancePercentage
+                            student.attendancePercentage,
                           )}`}
                         >
                           {student.attendancePercentage.toFixed(1)}%

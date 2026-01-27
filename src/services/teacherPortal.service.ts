@@ -85,6 +85,31 @@ export interface AttendanceRecord {
   markedAt: string;
 }
 
+// Grouped attendance record for attendance records list
+export interface GroupedAttendanceRecord {
+  _id: string;
+  section: {
+    _id: string;
+    name: string;
+    year?: string;
+    shift?: string;
+  } | null;
+  subject: {
+    _id: string;
+    name: string;
+    code: string;
+  } | null;
+  date: string;
+  period: number;
+  totalStudents: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  leaveCount: number;
+  attendancePercentage: number;
+  markedAt: string;
+}
+
 export interface AttendanceSheetStudent {
   _id: string;
   name: string;
@@ -182,68 +207,83 @@ class TeacherPortalService {
     limit?: number;
   }) {
     const response = await api.get<{
-      assignments: TeacherAssignment[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
+      data: {
+        assignments: TeacherAssignment[];
+        pagination: {
+          currentPage: number;
+          perPage: number;
+          totalPages: number;
+          totalItems: number;
+        };
+      };
     }>(`${this.basePath}/my-assignments`, { params: filters });
-    return response.data;
+
+    // Transform response to expected format
+    const { assignments, pagination } = response.data.data;
+    return {
+      assignments,
+      total: pagination.totalItems,
+      page: pagination.currentPage,
+      limit: pagination.perPage,
+      totalPages: pagination.totalPages,
+    };
   }
 
   // Get unique sections assigned to teacher
   async getMySections(filters?: { academicYear?: string; semester?: string }) {
     const response = await api.get<{
-      sections: {
-        _id: string;
-        name: string;
-        year: string;
-        shift: string;
-        program: { _id: string; name: string; code: string };
-      }[];
+      data: {
+        sections: {
+          _id: string;
+          name: string;
+          year: string;
+          shift: string;
+          program: { _id: string; name: string; code: string };
+        }[];
+      };
     }>(`${this.basePath}/my-sections`, { params: filters });
-    return response.data;
+    return response.data.data;
   }
 
   // Get unique subjects assigned to teacher
   async getMySubjects(filters?: { academicYear?: string; semester?: string }) {
     const response = await api.get<{
-      subjects: {
-        _id: string;
-        name: string;
-        code: string;
-        creditHours: number;
-      }[];
+      data: {
+        subjects: {
+          _id: string;
+          name: string;
+          code: string;
+          creditHours: number;
+        }[];
+      };
     }>(`${this.basePath}/my-subjects`, { params: filters });
-    return response.data;
+    return response.data.data;
   }
 
   // Get students in a section (validates assignment)
   async getSectionStudents(
     sectionId: string,
-    filters?: { page?: number; limit?: number; search?: string }
+    filters?: { page?: number; limit?: number; search?: string },
   ) {
     const response = await api.get<{
-      students: Student[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
+      data: Student[];
     }>(`${this.basePath}/sections/${sectionId}/students`, { params: filters });
-    return response.data;
+    return { students: response.data.data };
   }
 
   // Mark attendance (validates assignment)
   async markAttendance(data: MarkAttendanceDto) {
     const response = await api.post<{
-      message: string;
-      marked: number;
-      attendance: AttendanceRecord[];
+      data: {
+        message: string;
+        marked: number;
+        attendance: AttendanceRecord[];
+      };
     }>(`${this.basePath}/attendance/mark`, data);
-    return response.data;
+    return response.data.data;
   }
 
-  // Get attendance records
+  // Get grouped attendance records (grouped by section/subject/date/period)
   async getAttendance(filters: {
     sectionId?: string;
     subjectId?: string;
@@ -254,42 +294,59 @@ class TeacherPortalService {
     period?: string;
     page?: number;
     limit?: number;
-  }) {
+  }): Promise<{
+    attendance: GroupedAttendanceRecord[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const response = await api.get<{
-      attendance: AttendanceRecord[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
+      data: {
+        attendance: GroupedAttendanceRecord[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     }>(`${this.basePath}/attendance`, { params: filters });
-    return response.data;
+
+    return {
+      attendance: response.data.data.attendance || [],
+      total: response.data.data.total || 0,
+      page: response.data.data.page || 1,
+      limit: response.data.data.limit || 50,
+      totalPages: response.data.data.totalPages || 1,
+    };
   }
 
   // Generate attendance sheet (pre-filled student list)
   async generateAttendanceSheet(
     sectionId: string,
     subjectId: string,
-    date: string
+    date: string,
   ) {
     const response = await api.get<{
-      section: {
-        _id: string;
-        name: string;
-        year: string;
-        shift: string;
+      data: {
+        section: {
+          _id: string;
+          name: string;
+          year: string;
+          shift: string;
+        };
+        subject: {
+          _id: string;
+          name: string;
+          code: string;
+        };
+        date: string;
+        students: AttendanceSheetStudent[];
+        alreadyMarked: boolean;
       };
-      subject: {
-        _id: string;
-        name: string;
-        code: string;
-      };
-      date: string;
-      students: AttendanceSheetStudent[];
-      alreadyMarked: boolean;
     }>(`${this.basePath}/attendance/sheet`, {
       params: { sectionId, subjectId, date },
     });
-    return response.data;
+    return response.data.data;
   }
 
   // Get student attendance statistics
@@ -299,13 +356,14 @@ class TeacherPortalService {
       subjectId?: string;
       startDate?: string;
       endDate?: string;
-    }
+    },
   ) {
-    const response = await api.get<StudentAttendanceStats>(
-      `${this.basePath}/attendance/stats/student/${studentId}`,
-      { params: filters }
-    );
-    return response.data;
+    const response = await api.get<{
+      data: StudentAttendanceStats;
+    }>(`${this.basePath}/attendance/stats/student/${studentId}`, {
+      params: filters,
+    });
+    return response.data.data;
   }
 
   // Get section attendance statistics
@@ -313,13 +371,13 @@ class TeacherPortalService {
     sectionId: string,
     subjectId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ) {
     const response = await api.get<SectionAttendanceStats>(
       `${this.basePath}/attendance/stats/section/${sectionId}`,
       {
         params: { subjectId, startDate, endDate },
-      }
+      },
     );
     return response.data;
   }

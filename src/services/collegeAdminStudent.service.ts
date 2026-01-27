@@ -147,6 +147,7 @@ export interface StudentFilters {
   programId?: string;
   sectionId?: string;
   status?: "Active" | "Inactive" | "Graduated" | "Dropped";
+  noSection?: boolean;
 }
 
 export interface ExportStudent {
@@ -175,7 +176,7 @@ export const collegeAdminStudentService = {
   getAll: async (
     page: number = 1,
     limit: number = 50,
-    filters: StudentFilters = {}
+    filters: StudentFilters = {},
   ): Promise<{
     data: Student[];
     total: number;
@@ -191,9 +192,10 @@ export const collegeAdminStudentService = {
     if (filters.programId) params.append("programId", filters.programId);
     if (filters.sectionId) params.append("sectionId", filters.sectionId);
     if (filters.status) params.append("status", filters.status);
+    if (filters.noSection) params.append("noSection", "true");
 
     const response = await api.get(
-      `/college-admin/students?${params.toString()}`
+      `/college-admin/students?${params.toString()}`,
     );
 
     return {
@@ -211,7 +213,7 @@ export const collegeAdminStudentService = {
   search: async (
     query: string,
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<{
     data: Student[];
     total: number;
@@ -221,8 +223,8 @@ export const collegeAdminStudentService = {
   }> => {
     const response = await api.get(
       `/college-admin/students/search?query=${encodeURIComponent(
-        query
-      )}&page=${page}&limit=${limit}`
+        query,
+      )}&page=${page}&limit=${limit}`,
     );
 
     return {
@@ -255,11 +257,11 @@ export const collegeAdminStudentService = {
    */
   update: async (
     studentId: string,
-    data: UpdateStudentDto
+    data: UpdateStudentDto,
   ): Promise<Student> => {
     const response = await api.put(
       `/college-admin/students/${studentId}`,
-      data
+      data,
     );
     return response.data.data;
   },
@@ -276,7 +278,7 @@ export const collegeAdminStudentService = {
    */
   bulkImport: async (
     students: BulkImportStudent[],
-    createLoginAccounts: boolean = false
+    createLoginAccounts: boolean = false,
   ): Promise<BulkImportResult> => {
     const response = await api.post("/college-admin/students/bulk-import", {
       students,
@@ -288,15 +290,22 @@ export const collegeAdminStudentService = {
   /**
    * Bulk import students from CSV (auto-creates programs/sections)
    * Use this method for CSV imports with raw column names
+   * Uses extended timeout for large imports
    */
   bulkImportCSV: async (
     students: BulkImportCSVStudent[],
-    createLoginAccounts: boolean = false
+    createLoginAccounts: boolean = false,
   ): Promise<BulkImportResult> => {
-    const response = await api.post("/college-admin/students/bulk-import-csv", {
-      students,
-      createLoginAccounts,
-    });
+    const response = await api.post(
+      "/college-admin/students/bulk-import-csv",
+      {
+        students,
+        createLoginAccounts,
+      },
+      {
+        timeout: 300000, // 5 minutes timeout for bulk imports
+      },
+    );
     return response.data.data;
   },
 
@@ -310,8 +319,35 @@ export const collegeAdminStudentService = {
     if (filters.sectionId) params.append("sectionId", filters.sectionId);
 
     const response = await api.get(
-      `/college-admin/students/export?${params.toString()}`
+      `/college-admin/students/export?${params.toString()}`,
     );
+    return response.data.data;
+  },
+
+  /**
+   * Get students by section ID
+   */
+  getBySection: async (sectionId: string): Promise<Student[]> => {
+    const response = await api.get(`/college-admin/students`, {
+      params: {
+        sectionId,
+        limit: 1000, // Get all students in section
+      },
+    });
+    return response.data.data.students;
+  },
+
+  /**
+   * Move students to another section
+   */
+  moveToSection: async (
+    studentIds: string[],
+    targetSectionId: string,
+  ): Promise<{ updatedCount: number }> => {
+    const response = await api.patch("/college-admin/students/move-section", {
+      studentIds,
+      targetSectionId,
+    });
     return response.data.data;
   },
 };

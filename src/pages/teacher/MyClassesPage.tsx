@@ -88,7 +88,9 @@ const MyClassesPage: React.FC = () => {
       assignment.subject.name.toLowerCase().includes(searchLower) ||
       assignment.subject.code.toLowerCase().includes(searchLower) ||
       assignment.section.name.toLowerCase().includes(searchLower) ||
-      assignment.section.program.name.toLowerCase().includes(searchLower)
+      (assignment.section.program?.name || "")
+        .toLowerCase()
+        .includes(searchLower)
     );
   });
 
@@ -222,7 +224,7 @@ const MyClassesPage: React.FC = () => {
                     </div>
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSemesterBadgeColor(
-                        assignment.semester
+                        assignment.semester,
                       )}`}
                     >
                       {assignment.semester}
@@ -252,7 +254,7 @@ const MyClassesPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <GraduationCap className="w-4 h-4 text-gray-500" />
                       <p className="text-sm text-gray-700">
-                        {assignment.section.program.name}
+                        {assignment.section.program?.name || "N/A"}
                       </p>
                     </div>
 
@@ -311,7 +313,7 @@ const MyClassesPage: React.FC = () => {
                     <button
                       onClick={() =>
                         navigate(
-                          `/teacher/mark-attendance?section=${assignment.section._id}&subject=${assignment.subject._id}`
+                          `/teacher/mark-attendance?section=${assignment.section._id}&subject=${assignment.subject._id}`,
                         )
                       }
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
@@ -321,7 +323,7 @@ const MyClassesPage: React.FC = () => {
                     <button
                       onClick={() =>
                         navigate(
-                          `/teacher/statistics?section=${assignment.section._id}&subject=${assignment.subject._id}`
+                          `/teacher/statistics?section=${assignment.section._id}&subject=${assignment.subject._id}`,
                         )
                       }
                       className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors"
@@ -364,7 +366,7 @@ const MyClassesPage: React.FC = () => {
                           (p) =>
                             p === 1 ||
                             p === totalPages ||
-                            (p >= page - 1 && p <= page + 1)
+                            (p >= page - 1 && p <= page + 1),
                         )
                         .map((p, idx, arr) => (
                           <React.Fragment key={p}>

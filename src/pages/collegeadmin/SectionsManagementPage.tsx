@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import collegeAdminSectionManagementService from "../../services/collegeAdminSectionManagement.service";
 import { collegeAdminProgramService } from "../../services/collegeAdminProgram.service";
 import collegeAdminSubjectService from "../../services/collegeAdminSubject.service";
+import { collegeAdminStudentService } from "../../services/collegeAdminStudent.service";
 import type {
   Section,
   CreateSectionDto,
@@ -10,6 +11,7 @@ import type {
 } from "../../services/collegeAdminSectionManagement.service";
 import type { Program } from "../../services/collegeAdminProgram.service";
 import type { Subject } from "../../services/collegeAdminSubject.service";
+import type { Student } from "../../services/collegeAdminStudent.service";
 import { useToast } from "../../hooks/useToast";
 import { ToastContainer } from "../../components/ui/Toast";
 
@@ -94,7 +96,7 @@ const SectionModal: React.FC<SectionModalProps> = ({
       if (editSection) {
         await collegeAdminSectionManagementService.update(
           editSection._id,
-          formData
+          formData,
         );
         success("Section updated successfully!");
       } else {
@@ -300,7 +302,7 @@ const SectionModal: React.FC<SectionModalProps> = ({
                               setFormData({
                                 ...formData,
                                 subjects: formData.subjects.filter(
-                                  (id) => id !== subject._id
+                                  (id) => id !== subject._id,
                                 ),
                               });
                             }
@@ -408,7 +410,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
   const updateSectionRange = (
     index: number,
     field: keyof SectionRange,
-    value: any
+    value: any,
   ) => {
     const updated = [...sectionRanges];
     updated[index] = { ...updated[index], [field]: value };
@@ -422,7 +424,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
 
       if (range1.start >= range1.end) {
         error(
-          `Section ${range1.name}: End roll number must be greater than start`
+          `Section ${range1.name}: End roll number must be greater than start`,
         );
         return false;
       }
@@ -436,7 +438,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
           (range2.start >= range1.start && range2.start <= range1.end)
         ) {
           error(
-            `Roll number ranges overlap between ${range1.name} and ${range2.name}`
+            `Roll number ranges overlap between ${range1.name} and ${range2.name}`,
           );
           return false;
         }
@@ -472,7 +474,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
       setResults(result);
       setShowResults(true);
       success(
-        `Successfully created ${result.summary.totalSections} sections and assigned ${result.summary.totalStudentsAssigned} students!`
+        `Successfully created ${result.summary.totalSections} sections and assigned ${result.summary.totalStudentsAssigned} students!`,
       );
     } catch (err: any) {
       error(err?.response?.data?.message || "Failed to split sections");
@@ -763,7 +765,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
                         updateSectionRange(
                           index,
                           "start",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -783,7 +785,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
                         updateSectionRange(
                           index,
                           "end",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -803,7 +805,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
                         updateSectionRange(
                           index,
                           "capacity",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value),
                         )
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -834,7 +836,7 @@ const SplitSectionsModal: React.FC<SplitSectionsModalProps> = ({
                                 const updated = e.target.checked
                                   ? [...range.subjects, subject._id]
                                   : range.subjects.filter(
-                                      (id) => id !== subject._id
+                                      (id) => id !== subject._id,
                                     );
                                 updateSectionRange(index, "subjects", updated);
                               }}
@@ -955,6 +957,642 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   );
 };
 
+// ==================== View Students Modal ====================
+
+interface ViewStudentsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+  section: Section | null;
+  sections: Section[];
+  success: (message: string) => void;
+  error: (message: string) => void;
+  initialTab?: "assigned" | "unassigned";
+}
+
+const ViewStudentsModal: React.FC<ViewStudentsModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  section,
+  sections,
+  success,
+  error,
+  initialTab = "assigned",
+}) => {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [unassignedStudents, setUnassignedStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [targetSectionId, setTargetSectionId] = useState("");
+  const [movingStudents, setMovingStudents] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"assigned" | "unassigned">(
+    initialTab,
+  );
+
+  useEffect(() => {
+    if (isOpen && section) {
+      setActiveTab(initialTab);
+      fetchStudents();
+      fetchUnassignedStudents();
+    }
+  }, [isOpen, section, initialTab]);
+
+  const fetchStudents = async () => {
+    if (!section) return;
+
+    setLoading(true);
+    try {
+      const data = await collegeAdminStudentService.getBySection(section._id);
+      setStudents(
+        data.sort((a, b) => a.rollNumber.localeCompare(b.rollNumber)),
+      );
+    } catch (err: any) {
+      error(err.response?.data?.message || "Failed to fetch students");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUnassignedStudents = async () => {
+    if (!section) return;
+
+    setLoadingUnassigned(true);
+    try {
+      // Fetch ALL unassigned students (without program filter)
+      // This allows assigning students from any program to this section
+      const response = await collegeAdminStudentService.getAll(1, 1000, {
+        noSection: true,
+      });
+
+      setUnassignedStudents(
+        response.data.sort((a, b) => a.rollNumber.localeCompare(b.rollNumber)),
+      );
+    } catch (err: any) {
+      error(
+        err.response?.data?.message || "Failed to fetch unassigned students",
+      );
+    } finally {
+      setLoadingUnassigned(false);
+    }
+  };
+
+  const handleAssignToSection = async () => {
+    if (selectedStudents.length === 0) {
+      error("Please select at least one student");
+      return;
+    }
+
+    if (!section) return;
+
+    setMovingStudents(true);
+    try {
+      const result = await collegeAdminStudentService.moveToSection(
+        selectedStudents,
+        section._id,
+      );
+      success(
+        `Successfully assigned ${result.updatedCount} student(s) to ${section.name}`,
+      );
+      setSelectedStudents([]);
+      fetchStudents();
+      fetchUnassignedStudents();
+      setActiveTab("assigned");
+      // Notify parent to refetch sections (to update student counts)
+      onSuccess?.();
+    } catch (err: any) {
+      error(err.response?.data?.message || "Failed to assign students");
+    } finally {
+      setMovingStudents(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedStudents(filteredStudents.map((s) => s._id));
+    } else {
+      setSelectedStudents([]);
+    }
+  };
+
+  const handleSelectStudent = (studentId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedStudents([...selectedStudents, studentId]);
+    } else {
+      setSelectedStudents(selectedStudents.filter((id) => id !== studentId));
+    }
+  };
+
+  const handleMoveStudents = async () => {
+    if (!targetSectionId || selectedStudents.length === 0) {
+      error("Please select a target section and at least one student");
+      return;
+    }
+
+    setMovingStudents(true);
+    try {
+      const result = await collegeAdminStudentService.moveToSection(
+        selectedStudents,
+        targetSectionId,
+      );
+      success(
+        `Successfully moved ${result.updatedCount} student(s) to the new section`,
+      );
+      setSelectedStudents([]);
+      setTargetSectionId("");
+      fetchStudents();
+      // Notify parent to refetch sections (to update student counts)
+      onSuccess?.();
+    } catch (err: any) {
+      error(err.response?.data?.message || "Failed to move students");
+    } finally {
+      setMovingStudents(false);
+    }
+  };
+
+  const handleSelectByRollRange = () => {
+    const startRoll = prompt("Enter start roll number (e.g., 101):");
+    const endRoll = prompt("Enter end roll number (e.g., 150):");
+
+    if (!startRoll || !endRoll) return;
+
+    const selected = students.filter((student) => {
+      const rollNum = parseInt(student.rollNumber.replace(/\D/g, ""));
+      const start = parseInt(startRoll.replace(/\D/g, ""));
+      const end = parseInt(endRoll.replace(/\D/g, ""));
+      return rollNum >= start && rollNum <= end;
+    });
+
+    setSelectedStudents(selected.map((s) => s._id));
+    success(
+      `Selected ${selected.length} students in range ${startRoll} - ${endRoll}`,
+    );
+  };
+
+  if (!isOpen || !section) return null;
+
+  const filteredStudents = students.filter(
+    (student) =>
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const availableSections = sections.filter((s) => s._id !== section._id);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">
+                Students in {section.name}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {section.program?.name || "N/A"} - {section.year} (
+                {section.shift})
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Roll Range: {section.rollNumberRange?.start || 1} -{" "}
+                {section.rollNumberRange?.end || 50} | Total: {students.length}{" "}
+                students
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-2"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="border-b border-gray-200 px-6">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab("assigned")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "assigned"
+                  ? "border-primary-600 text-primary-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Assigned Students ({students.length})
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("unassigned");
+                if (unassignedStudents.length === 0) {
+                  fetchUnassignedStudents();
+                }
+              }}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "unassigned"
+                  ? "border-primary-600 text-primary-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Unassigned Students ({unassignedStudents.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {activeTab === "assigned" ? (
+            // Assigned Students Tab
+            loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : students.length === 0 ? (
+              <div className="text-center py-12">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No students found
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  This section doesn't have any students assigned yet.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Search and Actions */}
+                <div className="mb-4 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Search by name or roll number..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    <button
+                      onClick={handleSelectByRollRange}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium whitespace-nowrap"
+                    >
+                      Select by Range
+                    </button>
+                  </div>
+
+                  {selectedStudents.length > 0 && (
+                    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <span className="text-sm font-medium text-blue-900">
+                        {selectedStudents.length} student(s) selected
+                      </span>
+                      <select
+                        value={targetSectionId}
+                        onChange={(e) => setTargetSectionId(e.target.value)}
+                        className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        <option value="">Move to section...</option>
+                        {availableSections.map((s) => (
+                          <option key={s._id} value={s._id}>
+                            {s.name} - {s.year} ({s.shift})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={handleMoveStudents}
+                        disabled={movingStudents || !targetSectionId}
+                        className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {movingStudents ? "Moving..." : "Move"}
+                      </button>
+                      <button
+                        onClick={() => setSelectedStudents([])}
+                        className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Students Table */}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={
+                              selectedStudents.length ===
+                                filteredStudents.length &&
+                              filteredStudents.length > 0
+                            }
+                            onChange={(e) => handleSelectAll(e.target.checked)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Roll No.
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Father Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredStudents.map((student) => (
+                        <tr
+                          key={student._id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.includes(student._id)}
+                              onChange={(e) =>
+                                handleSelectStudent(
+                                  student._id,
+                                  e.target.checked,
+                                )
+                              }
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {student.rollNumber}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {student.name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {student.fatherName}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                student.status === "Active"
+                                  ? "bg-green-100 text-green-800"
+                                  : student.status === "Graduated"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : student.status === "Inactive"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {student.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )
+          ) : // Unassigned Students Tab
+          loadingUnassigned ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          ) : unassignedStudents.length === 0 ? (
+            <div className="text-center py-12">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No unassigned students
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                All students have been assigned to sections, or no students have
+                been imported yet.
+              </p>
+              <p className="mt-2 text-xs text-gray-400">
+                Import students from the Students page to assign them to
+                sections.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Search and Actions for Unassigned */}
+              <div className="mb-4 space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search by name or roll number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+
+                {selectedStudents.length > 0 && (
+                  <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg p-3">
+                    <span className="text-sm font-medium text-green-900">
+                      {selectedStudents.length} student(s) selected
+                    </span>
+                    <button
+                      onClick={handleAssignToSection}
+                      disabled={movingStudents}
+                      className="ml-auto px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {movingStudents ? "Assigning..." : "Assign to Section"}
+                    </button>
+                    <button
+                      onClick={() => setSelectedStudents([])}
+                      className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Unassigned Students Table */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedStudents.length ===
+                              unassignedStudents.filter(
+                                (s) =>
+                                  s.name
+                                    .toLowerCase()
+                                    .includes(searchQuery.toLowerCase()) ||
+                                  s.rollNumber
+                                    .toLowerCase()
+                                    .includes(searchQuery.toLowerCase()),
+                              ).length &&
+                            unassignedStudents.filter(
+                              (s) =>
+                                s.name
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()) ||
+                                s.rollNumber
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()),
+                            ).length > 0
+                          }
+                          onChange={(e) => {
+                            const filtered = unassignedStudents.filter(
+                              (s) =>
+                                s.name
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()) ||
+                                s.rollNumber
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()),
+                            );
+                            setSelectedStudents(
+                              e.target.checked
+                                ? filtered.map((s) => s._id)
+                                : [],
+                            );
+                          }}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Roll No.
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Father Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Program
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {unassignedStudents
+                      .filter(
+                        (s) =>
+                          s.name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase()) ||
+                          s.rollNumber
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase()),
+                      )
+                      .map((student) => (
+                        <tr
+                          key={student._id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.includes(student._id)}
+                              onChange={(e) =>
+                                handleSelectStudent(
+                                  student._id,
+                                  e.target.checked,
+                                )
+                              }
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {student.rollNumber}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {student.name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {student.fatherName}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {typeof student.programId === "object" &&
+                            student.programId
+                              ? student.programId.name
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                student.status === "Active"
+                                  ? "bg-green-100 text-green-800"
+                                  : student.status === "Graduated"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : student.status === "Inactive"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {student.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ==================== Main Sections Page ====================
 
 const SectionsManagementPage: React.FC = () => {
@@ -969,8 +1607,14 @@ const SectionsManagementPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewStudentsModal, setShowViewStudentsModal] = useState(false);
+  const [viewStudentsInitialTab, setViewStudentsInitialTab] = useState<
+    "assigned" | "unassigned"
+  >("assigned");
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [deleteSection, setDeleteSection] = useState<Section | null>(null);
+  const [viewStudentsSection, setViewStudentsSection] =
+    useState<Section | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [filterProgram, setFilterProgram] = useState("");
   const [filterYear, setFilterYear] = useState("");
@@ -1005,9 +1649,8 @@ const SectionsManagementPage: React.FC = () => {
       if (filterProgram) filters.programId = filterProgram;
       if (filterYear) filters.year = filterYear;
 
-      const response = await collegeAdminSectionManagementService.getAll(
-        filters
-      );
+      const response =
+        await collegeAdminSectionManagementService.getAll(filters);
       setSections(response.sections);
       setTotalPages(response.totalPages);
       setTotalSections(response.totalSections);
@@ -1021,6 +1664,18 @@ const SectionsManagementPage: React.FC = () => {
   const handleEdit = (section: Section) => {
     setEditSection(section);
     setShowModal(true);
+  };
+
+  const handleViewStudents = (section: Section) => {
+    setViewStudentsSection(section);
+    setViewStudentsInitialTab("assigned");
+    setShowViewStudentsModal(true);
+  };
+
+  const handleAssignStudents = (section: Section) => {
+    setViewStudentsSection(section);
+    setViewStudentsInitialTab("unassigned");
+    setShowViewStudentsModal(true);
   };
 
   const handleDeleteClick = (section: Section) => {
@@ -1054,6 +1709,35 @@ const SectionsManagementPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Workflow Tip Banner */}
+      <div className="max-w-7xl mx-auto mb-4">
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-orange-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-orange-800">
+              <strong>Step 2 of 5:</strong> Create sections and assign subjects
+              to them. Click "Students" on any section card to assign/manage
+              students. Use "Split Sections" to quickly create multiple sections
+              by roll number ranges.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6">
@@ -1243,25 +1927,187 @@ const SectionsManagementPage: React.FC = () => {
               {sections.map((section) => (
                 <div
                   key={section._id}
-                  className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  {/* Card Header with color indicator */}
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">
                         {section.name}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-blue-100 text-sm">
                         {section.program?.name || "Unknown Program"}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        section.isActive
+                          ? "bg-green-400 text-green-900"
+                          : "bg-gray-400 text-gray-900"
+                      }`}
+                    >
+                      {section.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="p-4">
+                    {/* Quick Stats Row */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-green-50 rounded-lg p-2 text-center">
+                        <span className="block text-lg font-bold text-green-700">
+                          {section.currentStrength || 0}
+                        </span>
+                        <span className="text-xs text-green-600">Students</span>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-2 text-center">
+                        <span className="block text-lg font-bold text-blue-700">
+                          {section.subjects?.length || 0}
+                        </span>
+                        <span className="text-xs text-blue-600">Subjects</span>
+                      </div>
+                      <div className="bg-purple-50 rounded-lg p-2 text-center">
+                        <span className="block text-lg font-bold text-purple-700">
+                          {section.capacity || 50}
+                        </span>
+                        <span className="text-xs text-purple-600">
+                          Capacity
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Section Details */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <svg
+                          className="w-4 h-4 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span>
+                          {section.year} • {section.shift}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <svg
+                          className="w-4 h-4 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+                          />
+                        </svg>
+                        <span>
+                          Roll Range: {section.rollNumberRange?.start || 1} -{" "}
+                          {section.rollNumberRange?.end || 50}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Subjects Display */}
+                    {section.subjects && section.subjects.length > 0 ? (
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-gray-500 mb-2">
+                          Assigned Subjects:
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {section.subjects
+                            .slice(0, 4)
+                            .map((subjectId, idx) => {
+                              const subject = subjects.find(
+                                (s) => s._id === subjectId,
+                              );
+                              return subject ? (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded font-medium"
+                                >
+                                  {subject.code}
+                                </span>
+                              ) : null;
+                            })}
+                          {section.subjects.length > 4 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                              +{section.subjects.length - 4} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs text-yellow-700">
+                          ⚠️ No subjects assigned yet. Click edit to add
+                          subjects.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Action Buttons - Row 1: Student Actions */}
+                    <div className="flex gap-2 pt-3 border-t border-gray-100">
                       <button
-                        onClick={() => handleEdit(section)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        title="Edit"
+                        onClick={() => handleAssignStudents(section)}
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
+                        title="Assign Students to Section"
                       >
                         <svg
-                          className="w-5 h-5"
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                          />
+                        </svg>
+                        Assign Students
+                      </button>
+                      <button
+                        onClick={() => handleViewStudents(section)}
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-sm font-medium transition-colors"
+                        title="View Assigned Students"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                          />
+                        </svg>
+                        View
+                      </button>
+                    </div>
+
+                    {/* Action Buttons - Row 2: Edit/Delete */}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleEdit(section)}
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-medium transition-colors"
+                        title="Edit Section"
+                      >
+                        <svg
+                          className="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1273,14 +2119,15 @@ const SectionsManagementPage: React.FC = () => {
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                           />
                         </svg>
+                        Edit
                       </button>
                       <button
                         onClick={() => handleDeleteClick(section)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Delete"
+                        className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
+                        title="Delete Section"
                       >
                         <svg
-                          className="w-5 h-5"
+                          className="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1294,109 +2141,6 @@ const SectionsManagementPage: React.FC = () => {
                         </svg>
                       </button>
                     </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span>
-                        {section.year} • {section.shift}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-                        />
-                      </svg>
-                      <span>
-                        Roll: {section.rollNumberRange?.start || 1} -{" "}
-                        {section.rollNumberRange?.end || 50}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                        />
-                      </svg>
-                      <span>
-                        {section.currentStrength || 0} / {section.capacity}{" "}
-                        students
-                      </span>
-                    </div>
-                  </div>
-
-                  {section.subjects && section.subjects.length > 0 && (
-                    <div className="pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-2">Subjects:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {section.subjects.slice(0, 3).map((subjectId, idx) => {
-                          const subject = subjects.find(
-                            (s) => s._id === subjectId
-                          );
-                          return subject ? (
-                            <span
-                              key={idx}
-                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
-                            >
-                              {subject.code}
-                            </span>
-                          ) : null;
-                        })}
-                        {section.subjects.length > 3 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded">
-                            +{section.subjects.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
-                    <span>
-                      Created:{" "}
-                      {new Date(section.createdAt).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`px-2 py-1 rounded ${
-                        section.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {section.isActive ? "Active" : "Inactive"}
-                    </span>
                   </div>
                 </div>
               ))}
@@ -1488,6 +2232,20 @@ const SectionsManagementPage: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         sectionName={deleteSection?.name || ""}
         loading={deleteLoading}
+      />
+
+      <ViewStudentsModal
+        isOpen={showViewStudentsModal}
+        onClose={() => {
+          setShowViewStudentsModal(false);
+          setViewStudentsSection(null);
+        }}
+        onSuccess={fetchSections}
+        section={viewStudentsSection}
+        sections={sections}
+        success={success}
+        error={error}
+        initialTab={viewStudentsInitialTab}
       />
     </div>
   );

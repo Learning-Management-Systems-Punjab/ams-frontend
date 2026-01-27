@@ -13,14 +13,14 @@ import {
   FileText,
 } from "lucide-react";
 import teacherPortalService, {
-  type AttendanceRecord,
+  type GroupedAttendanceRecord,
 } from "../../services/teacherPortal.service";
 import { useToast } from "../../hooks/useToast";
 import { ToastContainer } from "../../components/ui/Toast";
 
 const AttendanceRecordsPage: React.FC = () => {
   const { toasts, removeToast, error } = useToast();
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [records, setRecords] = useState<GroupedAttendanceRecord[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +87,7 @@ const AttendanceRecordsPage: React.FC = () => {
       setTotal(response.total);
     } catch (err: any) {
       error(
-        err?.response?.data?.message || "Failed to load attendance records"
+        err?.response?.data?.message || "Failed to load attendance records",
       );
     } finally {
       setLoading(false);
@@ -158,8 +158,9 @@ const AttendanceRecordsPage: React.FC = () => {
     if (!filters.search) return true;
     const searchLower = filters.search.toLowerCase();
     return (
-      record.student.name.toLowerCase().includes(searchLower) ||
-      record.student.rollNumber.toLowerCase().includes(searchLower)
+      (record.section?.name?.toLowerCase() || "").includes(searchLower) ||
+      (record.subject?.name?.toLowerCase() || "").includes(searchLower) ||
+      (record.subject?.code?.toLowerCase() || "").includes(searchLower)
     );
   });
 
@@ -208,7 +209,7 @@ const AttendanceRecordsPage: React.FC = () => {
                 <option value="">All Sections</option>
                 {sections.map((section) => (
                   <option key={section._id} value={section._id}>
-                    {section.name} - {section.program.name}
+                    {section.name} - {section.program?.name || "N/A"}
                   </option>
                 ))}
               </select>
@@ -347,9 +348,6 @@ const AttendanceRecordsPage: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Student
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Section
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -362,10 +360,19 @@ const AttendanceRecordsPage: React.FC = () => {
                         Period
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        Students
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Remarks
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Present
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Absent
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Late
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Attendance %
                       </th>
                     </tr>
                   </thead>
@@ -373,21 +380,18 @@ const AttendanceRecordsPage: React.FC = () => {
                     {filteredRecords.map((record) => (
                       <tr key={record._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {record.student.name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              Roll: {record.student.rollNumber}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm text-gray-900">
-                              {record.section.name}
-                            </span>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {record.section?.name || "-"}
+                              </div>
+                              {record.section?.year && (
+                                <div className="text-xs text-gray-500">
+                                  {record.section.year} - {record.section.shift}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -395,10 +399,10 @@ const AttendanceRecordsPage: React.FC = () => {
                             <BookOpen className="w-4 h-4 text-gray-400" />
                             <div>
                               <div className="text-sm text-gray-900">
-                                {record.subject.name}
+                                {record.subject?.name || "-"}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {record.subject.code}
+                                {record.subject?.code || ""}
                               </div>
                             </div>
                           </div>
@@ -417,11 +421,36 @@ const AttendanceRecordsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          {getStatusBadge(record.status)}
+                          <span className="text-sm font-medium text-gray-900">
+                            {record.totalStudents}
+                          </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-600">
-                            {record.remarks || "-"}
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {record.presentCount}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            {record.absentCount}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            {record.lateCount}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              record.attendancePercentage >= 75
+                                ? "bg-green-100 text-green-800"
+                                : record.attendancePercentage >= 50
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {record.attendancePercentage}%
                           </span>
                         </td>
                       </tr>
@@ -462,7 +491,7 @@ const AttendanceRecordsPage: React.FC = () => {
                           (p) =>
                             p === 1 ||
                             p === totalPages ||
-                            (p >= page - 1 && p <= page + 1)
+                            (p >= page - 1 && p <= page + 1),
                         )
                         .map((p, idx, arr) => (
                           <React.Fragment key={p}>

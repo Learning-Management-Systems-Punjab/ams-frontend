@@ -49,7 +49,7 @@ export const AttendanceRecordsPage: React.FC = () => {
     } catch (error: any) {
       showToast(
         error.response?.data?.message || "Failed to load section details",
-        "error"
+        "error",
       );
     }
   };
@@ -62,7 +62,7 @@ export const AttendanceRecordsPage: React.FC = () => {
     } catch (error: any) {
       showToast(
         error.response?.data?.message || "Failed to load attendance records",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -217,7 +217,7 @@ export const AttendanceRecordsPage: React.FC = () => {
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
-              Records {records && `(${records.pagination.total})`}
+              Records {records?.pagination && `(${records.pagination.total})`}
             </h2>
           </div>
         </div>
@@ -270,16 +270,16 @@ export const AttendanceRecordsPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {record.subject.name}
+                          {record.subject?.name || "N/A"}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {record.subject.code}
+                          {record.subject?.code || "-"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${studentPortalService.getStatusColor(
-                            record.status
+                            record.status,
                           )}`}
                         >
                           {getStatusIcon(record.status)}
@@ -288,7 +288,9 @@ export const AttendanceRecordsPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {record.markedBy.firstName} {record.markedBy.lastName}
+                          {record.markedBy
+                            ? `${record.markedBy.firstName} ${record.markedBy.lastName}`
+                            : "N/A"}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -315,7 +317,7 @@ export const AttendanceRecordsPage: React.FC = () => {
                   <span className="font-medium">
                     {Math.min(
                       records.pagination.page * records.pagination.limit,
-                      records.pagination.total
+                      records.pagination.total,
                     )}
                   </span>{" "}
                   of{" "}

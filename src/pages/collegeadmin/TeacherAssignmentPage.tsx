@@ -82,7 +82,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
       if (editAssignment) {
         await collegeAdminTeacherAssignmentService.update(
           editAssignment._id,
-          formData
+          formData,
         );
         success("Assignment updated successfully!");
       } else {
@@ -97,6 +97,14 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
       setLoading(false);
     }
   };
+
+  // Debug: log data passed to modal
+  console.log("AssignmentModal received:", {
+    isOpen,
+    teachersCount: teachers?.length || 0,
+    subjectsCount: subjects?.length || 0,
+    sectionsCount: sections?.length || 0,
+  });
 
   if (!isOpen) return null;
 
@@ -132,7 +140,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 <option value="">Select Teacher</option>
                 {teachers.map((teacher) => (
                   <option key={teacher._id} value={teacher._id}>
-                    {teacher.name} - {teacher.email}
+                    {teacher.name} - {teacher.contactEmail}
                   </option>
                 ))}
               </select>
@@ -326,6 +334,7 @@ const TeacherAssignmentPage: React.FC = () => {
   const [sections, setSections] = useState<Section[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialDataLoading, setInitialDataLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalAssignments, setTotalAssignments] = useState(0);
@@ -343,6 +352,7 @@ const TeacherAssignmentPage: React.FC = () => {
   const limit = 20;
 
   useEffect(() => {
+    console.log("TeacherAssignmentPage mounted - fetching initial data...");
     fetchInitialData();
   }, []);
 
@@ -351,20 +361,61 @@ const TeacherAssignmentPage: React.FC = () => {
   }, [currentPage, filterAcademicYear, filterSemester, filterProgram]);
 
   const fetchInitialData = async () => {
+    console.log("fetchInitialData called");
+    setInitialDataLoading(true);
     try {
+      // Fetch all data with individual error handling
+      // Note: Backend limits max to 100 per request
       const [teachersRes, subjectsRes, sectionsRes, programsRes] =
-        await Promise.all([
-          collegeAdminTeacherService.getAll(1, 200),
+        await Promise.allSettled([
+          collegeAdminTeacherService.getAll(1, 100),
           collegeAdminSubjectService.getAll(1, 100),
-          collegeAdminSectionManagementService.getAll({ page: 1, limit: 200 }),
+          collegeAdminSectionManagementService.getAll({ page: 1, limit: 100 }),
           collegeAdminProgramService.getAll(),
         ]);
-      setTeachers(teachersRes.data);
-      setSubjects(subjectsRes.subjects);
-      setSections(sectionsRes.sections);
-      setPrograms(programsRes);
+
+      // Handle teachers
+      if (teachersRes.status === "fulfilled") {
+        console.log("Teachers loaded:", teachersRes.value.data?.length || 0);
+        setTeachers(teachersRes.value.data || []);
+      } else {
+        console.error("Failed to load teachers:", teachersRes.reason);
+      }
+
+      // Handle subjects
+      if (subjectsRes.status === "fulfilled") {
+        console.log(
+          "Subjects loaded:",
+          subjectsRes.value.subjects?.length || 0,
+        );
+        setSubjects(subjectsRes.value.subjects || []);
+      } else {
+        console.error("Failed to load subjects:", subjectsRes.reason);
+      }
+
+      // Handle sections
+      if (sectionsRes.status === "fulfilled") {
+        console.log(
+          "Sections loaded:",
+          sectionsRes.value.sections?.length || 0,
+        );
+        setSections(sectionsRes.value.sections || []);
+      } else {
+        console.error("Failed to load sections:", sectionsRes.reason);
+      }
+
+      // Handle programs
+      if (programsRes.status === "fulfilled") {
+        console.log("Programs loaded:", programsRes.value?.length || 0);
+        setPrograms(programsRes.value || []);
+      } else {
+        console.error("Failed to load programs:", programsRes.reason);
+      }
     } catch (err: any) {
+      console.error("Failed to load initial data:", err);
       error("Failed to load initial data");
+    } finally {
+      setInitialDataLoading(false);
     }
   };
 
@@ -376,9 +427,8 @@ const TeacherAssignmentPage: React.FC = () => {
       if (filterSemester) filters.semester = filterSemester;
       if (filterProgram) filters.programId = filterProgram;
 
-      const response = await collegeAdminTeacherAssignmentService.getAll(
-        filters
-      );
+      const response =
+        await collegeAdminTeacherAssignmentService.getAll(filters);
       setAssignments(response.assignments);
       setTotalPages(response.totalPages);
       setTotalAssignments(response.totalAssignments);
@@ -426,6 +476,34 @@ const TeacherAssignmentPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Workflow Tip Banner */}
+      <div className="max-w-7xl mx-auto mb-4">
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-purple-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-purple-800">
+              <strong>Step 4 of 5:</strong> Assign teachers to Subject + Section
+              pairs. Once assigned, teachers can mark attendance for students in
+              that section.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6">
@@ -668,8 +746,8 @@ const TeacherAssignmentPage: React.FC = () => {
                               assignment.semester === "Fall"
                                 ? "bg-orange-100 text-orange-800"
                                 : assignment.semester === "Spring"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-yellow-100 text-yellow-800"
                             }`}
                           >
                             {assignment.semester}

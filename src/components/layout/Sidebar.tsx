@@ -120,12 +120,6 @@ const navigationItems: NavItem[] = [
     roles: ["Teacher", "Student"],
   },
   {
-    name: "My Classmates",
-    path: "/classmates",
-    icon: <Users className="w-5 h-5" />,
-    roles: ["Student"],
-  },
-  {
     name: "Attendance Stats",
     path: "/attendance-statistics",
     icon: <BarChart3 className="w-5 h-5" />,
@@ -157,7 +151,7 @@ export const Sidebar: React.FC = () => {
   };
 
   const filteredNavItems = navigationItems.filter((item) =>
-    user ? item.roles.includes(user.role) : false
+    user ? item.roles.includes(user.role) : false,
   );
 
   const roleBasedPath = user ? `/${user.role.toLowerCase()}` : "";
@@ -196,7 +190,7 @@ export const Sidebar: React.FC = () => {
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">AMS</h1>
+              <h1 className="text-lg font-bold text-gray-900">LMS</h1>
               <p className="text-xs text-gray-500">Attendance System</p>
             </div>
           </div>

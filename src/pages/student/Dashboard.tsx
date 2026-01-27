@@ -43,7 +43,7 @@ export const StudentDashboard: React.FC = () => {
     } catch (error: any) {
       showToast(
         error.response?.data?.message || "Failed to load dashboard data",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -69,7 +69,39 @@ export const StudentDashboard: React.FC = () => {
     );
   }
 
-  const overallPercentage = summary.overallStats.attendancePercentage;
+  // Check if student is not assigned to a section or no attendance data
+  if (
+    !summary.overall ||
+    summary.overall.totalClasses === undefined ||
+    !profile.section
+  ) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome, {profile.firstName} {profile.lastName}
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Track your attendance and academic progress
+          </p>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+            <p className="text-gray-800 font-medium">
+              Not Assigned to a Section
+            </p>
+            <p className="text-gray-600 mt-2">
+              You haven't been assigned to any section yet or no attendance has
+              been recorded. Please contact your college administrator.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const overallPercentage = summary.overall.attendancePercentage || 0;
   const statusBadge = studentPortalService.getStatusBadge(overallPercentage);
 
   return (
@@ -105,7 +137,7 @@ export const StudentDashboard: React.FC = () => {
                 <div>
                   <p className="text-xs text-blue-200">Program</p>
                   <p className="font-semibold">
-                    {profile.section.program.name}
+                    {profile.section?.program?.name || "N/A"}
                   </p>
                 </div>
               </div>
@@ -114,7 +146,7 @@ export const StudentDashboard: React.FC = () => {
                 <div>
                   <p className="text-xs text-blue-200">College</p>
                   <p className="font-semibold">
-                    {profile.section.college.name}
+                    {profile.section?.college?.name || "N/A"}
                   </p>
                 </div>
               </div>
@@ -122,7 +154,9 @@ export const StudentDashboard: React.FC = () => {
                 <Users className="w-5 h-5 text-blue-200" />
                 <div>
                   <p className="text-xs text-blue-200">Section</p>
-                  <p className="font-semibold">{profile.section.name}</p>
+                  <p className="font-semibold">
+                    {profile.section?.name || "N/A"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -145,30 +179,30 @@ export const StudentDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Classes"
-          value={summary.overallStats.totalClasses.toString()}
-          subtitle={`${summary.overallStats.present} Present`}
+          value={(summary.overall?.totalClasses || 0).toString()}
+          subtitle={`${summary.overall?.present || 0} Present`}
           icon={<Calendar className="w-6 h-6" />}
           color="bg-blue-500"
           trend={`${overallPercentage.toFixed(1)}%`}
         />
         <StatCard
           title="Subjects Enrolled"
-          value={summary.subjectWiseStats.length.toString()}
-          subtitle={`${profile.section.semester} Semester`}
+          value={(summary.subjects?.length || 0).toString()}
+          subtitle={`${profile.section?.semester || "N/A"}`}
           icon={<BookOpen className="w-6 h-6" />}
           color="bg-green-500"
         />
         <StatCard
           title="Present Days"
-          value={summary.overallStats.present.toString()}
-          subtitle={`${summary.overallStats.late} Late Arrivals`}
+          value={(summary.overall?.present || 0).toString()}
+          subtitle={`${summary.overall?.late || 0} Late Arrivals`}
           icon={<CheckCircle className="w-6 h-6" />}
           color="bg-emerald-500"
         />
         <StatCard
           title="Absent Days"
-          value={summary.overallStats.absent.toString()}
-          subtitle={`${summary.overallStats.excused} Excused`}
+          value={(summary.overall?.absent || 0).toString()}
+          subtitle={`${summary.overall?.excused || 0} Excused`}
           icon={<Clock className="w-6 h-6" />}
           color="bg-red-500"
         />
@@ -189,21 +223,23 @@ export const StudentDashboard: React.FC = () => {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {summary.subjectWiseStats.map((item) => {
-            const percentage = item.stats.attendancePercentage;
+          {summary.subjects?.map((item) => {
+            const percentage = item.attendancePercentage ?? 0;
             const percentageColor =
               studentPortalService.getPercentageColor(percentage);
             return (
               <div
-                key={item.subject._id}
+                key={item.subject?._id || Math.random()}
                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">
-                      {item.subject.name}
+                      {item.subject?.name || "Unknown Subject"}
                     </h3>
-                    <p className="text-sm text-gray-600">{item.subject.code}</p>
+                    <p className="text-sm text-gray-600">
+                      {item.subject?.code || "N/A"}
+                    </p>
                   </div>
                   <div className={`text-2xl font-bold ${percentageColor}`}>
                     {percentage.toFixed(0)}%
@@ -213,19 +249,19 @@ export const StudentDashboard: React.FC = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Present:</span>
                     <span className="font-medium text-green-600">
-                      {item.stats.present}
+                      {item.present ?? 0}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Absent:</span>
                     <span className="font-medium text-red-600">
-                      {item.stats.absent}
+                      {item.absent ?? 0}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Total:</span>
                     <span className="font-medium text-gray-900">
-                      {item.stats.totalClasses}
+                      {item.totalClasses ?? 0}
                     </span>
                   </div>
                 </div>
@@ -236,8 +272,8 @@ export const StudentDashboard: React.FC = () => {
                       percentage >= 85
                         ? "bg-green-500"
                         : percentage >= 75
-                        ? "bg-orange-500"
-                        : "bg-red-500"
+                          ? "bg-orange-500"
+                          : "bg-red-500"
                     }`}
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                   ></div>
@@ -268,11 +304,6 @@ export const StudentDashboard: React.FC = () => {
             icon={<TrendingUp className="w-5 h-5" />}
             label="Statistics"
             onClick={() => navigate("/student/statistics")}
-          />
-          <QuickActionButton
-            icon={<Users className="w-5 h-5" />}
-            label="Classmates"
-            onClick={() => navigate("/student/classmates")}
           />
         </div>
       </div>

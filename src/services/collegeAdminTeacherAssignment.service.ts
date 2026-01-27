@@ -131,7 +131,7 @@ const collegeAdminTeacherAssignmentService = {
    * Create a new teacher assignment
    */
   create: async (
-    data: CreateTeacherAssignmentDto
+    data: CreateTeacherAssignmentDto,
   ): Promise<TeacherAssignment> => {
     const response = await api.post("/college-admin/teacher-assignments", data);
     return response.data.data;
@@ -141,13 +141,22 @@ const collegeAdminTeacherAssignmentService = {
    * Get all teacher assignments with pagination and filters
    */
   getAll: async (
-    filters: TeacherAssignmentFilters = {}
+    filters: TeacherAssignmentFilters = {},
   ): Promise<TeacherAssignmentListResponse> => {
     const { page = 1, limit = 50, ...rest } = filters;
     const response = await api.get("/college-admin/teacher-assignments", {
       params: { page, limit, ...rest },
     });
-    return response.data.data;
+
+    // Map backend response to frontend expected format
+    const data = response.data.data;
+    return {
+      assignments: data.assignments || [],
+      currentPage: data.pagination?.page || page,
+      totalPages: data.pagination?.pages || 1,
+      totalAssignments: data.pagination?.total || 0,
+      limit: data.pagination?.limit || limit,
+    };
   },
 
   /**
@@ -155,14 +164,14 @@ const collegeAdminTeacherAssignmentService = {
    */
   getTeacherSchedule: async (
     teacherId: string,
-    filters: TeacherAssignmentFilters = {}
+    filters: TeacherAssignmentFilters = {},
   ): Promise<TeacherSchedule> => {
     const { page = 1, limit = 100, ...rest } = filters;
     const response = await api.get(
       `/college-admin/teacher-assignments/teacher/${teacherId}`,
       {
         params: { page, limit, ...rest },
-      }
+      },
     );
     return response.data.data;
   },
@@ -172,14 +181,14 @@ const collegeAdminTeacherAssignmentService = {
    */
   getSectionTeachers: async (
     sectionId: string,
-    filters: TeacherAssignmentFilters = {}
+    filters: TeacherAssignmentFilters = {},
   ): Promise<SectionTeachers> => {
     const { page = 1, limit = 100, ...rest } = filters;
     const response = await api.get(
       `/college-admin/teacher-assignments/section/${sectionId}`,
       {
         params: { page, limit, ...rest },
-      }
+      },
     );
     return response.data.data;
   },
@@ -189,11 +198,11 @@ const collegeAdminTeacherAssignmentService = {
    */
   update: async (
     assignmentId: string,
-    data: UpdateTeacherAssignmentDto
+    data: UpdateTeacherAssignmentDto,
   ): Promise<TeacherAssignment> => {
     const response = await api.put(
       `/college-admin/teacher-assignments/${assignmentId}`,
-      data
+      data,
     );
     return response.data.data;
   },

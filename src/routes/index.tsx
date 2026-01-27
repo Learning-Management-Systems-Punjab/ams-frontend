@@ -41,7 +41,6 @@ import { StudentDashboard } from "../pages/student/Dashboard";
 import { SectionDetailsPage } from "../pages/student/SectionDetailsPage";
 import { AttendanceRecordsPage as StudentAttendanceRecordsPage } from "../pages/student/AttendanceRecordsPage";
 import { StudentStatisticsPage } from "../pages/student/StudentStatisticsPage";
-import { ClassmatesPage } from "../pages/student/ClassmatesPage";
 
 // Error Pages
 const NotFound = () => (
@@ -303,10 +302,6 @@ export const router = createBrowserRouter([
       {
         path: "statistics",
         element: <StudentStatisticsPage />,
-      },
-      {
-        path: "classmates",
-        element: <ClassmatesPage />,
       },
       {
         path: "settings",

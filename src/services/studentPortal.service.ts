@@ -118,15 +118,38 @@ export interface AttendanceStats {
 }
 
 export interface AttendanceSummary {
-  overallStats: AttendanceStats;
-  subjectWiseStats: Array<{
+  message?: string;
+  totalSubjects?: number;
+  overall?: {
+    totalClasses: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    attendancePercentage: number;
+  };
+  subjects: Array<{
     subject: {
       _id: string;
       name: string;
       code: string;
     };
-    stats: AttendanceStats;
+    teachers: Array<{
+      _id: string;
+      firstName: string;
+      lastName: string;
+    }>;
+    totalClasses: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    attendancePercentage: number;
   }>;
+  section?: {
+    _id: string;
+    name: string;
+  };
 }
 
 export interface Classmate {
@@ -140,7 +163,6 @@ export interface Classmate {
 }
 
 export interface PaginatedResponse<T> {
-  success: boolean;
   data: T[];
   pagination: {
     total: number;
@@ -169,12 +191,14 @@ export interface AttendanceFilters {
 // ============================================================================
 
 class StudentPortalService {
+  private basePath = "/student-portal";
+
   /**
    * Get current student's profile with section and program details
    */
   async getMyProfile(): Promise<StudentProfile> {
     const response = await api.get<ApiResponse<StudentProfile>>(
-      "/student/profile"
+      `${this.basePath}/my-profile`,
     );
     return response.data.data;
   }
@@ -184,7 +208,7 @@ class StudentPortalService {
    */
   async getMySectionDetails(): Promise<SectionDetails> {
     const response = await api.get<ApiResponse<SectionDetails>>(
-      "/student/section"
+      `${this.basePath}/my-section`,
     );
     return response.data.data;
   }
@@ -193,29 +217,29 @@ class StudentPortalService {
    * Get attendance records with optional filters and pagination
    */
   async getMyAttendance(
-    filters: AttendanceFilters = {}
+    filters: AttendanceFilters = {},
   ): Promise<PaginatedResponse<AttendanceRecord>> {
     const params = new URLSearchParams();
 
-    if (filters.subject) params.append("subject", filters.subject);
+    if (filters.subject) params.append("subjectId", filters.subject);
     if (filters.startDate) params.append("startDate", filters.startDate);
     if (filters.endDate) params.append("endDate", filters.endDate);
     if (filters.page) params.append("page", filters.page.toString());
     if (filters.limit) params.append("limit", filters.limit.toString());
 
-    const response = await api.get<PaginatedResponse<AttendanceRecord>>(
-      `/student/attendance?${params.toString()}`
-    );
-    return response.data;
+    const response = await api.get<
+      ApiResponse<PaginatedResponse<AttendanceRecord>>
+    >(`${this.basePath}/my-attendance?${params.toString()}`);
+    return response.data.data;
   }
 
   /**
    * Get attendance statistics with optional subject filter
    */
   async getMyAttendanceStats(subject?: string): Promise<AttendanceStats> {
-    const params = subject ? `?subject=${subject}` : "";
+    const params = subject ? `?subjectId=${subject}` : "";
     const response = await api.get<ApiResponse<AttendanceStats>>(
-      `/student/attendance/statistics${params}`
+      `${this.basePath}/my-attendance/stats${params}`,
     );
     return response.data.data;
   }
@@ -225,7 +249,7 @@ class StudentPortalService {
    */
   async getMyAttendanceSummary(): Promise<AttendanceSummary> {
     const response = await api.get<ApiResponse<AttendanceSummary>>(
-      "/student/attendance/summary"
+      `${this.basePath}/my-attendance/summary`,
     );
     return response.data.data;
   }
@@ -235,7 +259,7 @@ class StudentPortalService {
    */
   async getMyClassmates(): Promise<Classmate[]> {
     const response = await api.get<ApiResponse<Classmate[]>>(
-      "/student/classmates"
+      `${this.basePath}/my-classmates`,
     );
     return response.data.data;
   }

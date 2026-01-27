@@ -145,7 +145,7 @@ export const collegeAdminTeacherService = {
    */
   getAll: async (
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<{
     data: Teacher[];
     total: number;
@@ -154,15 +154,20 @@ export const collegeAdminTeacherService = {
     totalPages: number;
   }> => {
     const response = await api.get(
-      `/college-admin/teachers?page=${page}&limit=${limit}`
+      `/college-admin/teachers?page=${page}&limit=${limit}`,
     );
 
+    // Handle potential undefined data
+    const responseData = response.data?.data || {};
+    const teachers = responseData.teachers || [];
+    const pagination = responseData.pagination || {};
+
     return {
-      data: response.data.data.teachers || [],
-      total: response.data.data.pagination.total,
-      page: response.data.data.pagination.page,
-      limit: response.data.data.pagination.limit,
-      totalPages: response.data.data.pagination.pages,
+      data: teachers,
+      total: pagination.total || 0,
+      page: pagination.page || page,
+      limit: pagination.limit || limit,
+      totalPages: pagination.pages || 1,
     };
   },
 
@@ -172,7 +177,7 @@ export const collegeAdminTeacherService = {
   search: async (
     query: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<{
     data: Teacher[];
     total: number;
@@ -182,8 +187,8 @@ export const collegeAdminTeacherService = {
   }> => {
     const response = await api.get(
       `/college-admin/teachers/search?q=${encodeURIComponent(
-        query
-      )}&page=${page}&limit=${limit}`
+        query,
+      )}&page=${page}&limit=${limit}`,
     );
 
     return {
@@ -216,11 +221,11 @@ export const collegeAdminTeacherService = {
    */
   update: async (
     teacherId: string,
-    data: UpdateTeacherDto
+    data: UpdateTeacherDto,
   ): Promise<Teacher> => {
     const response = await api.put(
       `/college-admin/teachers/${teacherId}`,
-      data
+      data,
     );
     return response.data.data;
   },
@@ -237,7 +242,7 @@ export const collegeAdminTeacherService = {
    */
   resetPassword: async (teacherId: string): Promise<ResetPasswordResponse> => {
     const response = await api.post(
-      `/college-admin/teachers/${teacherId}/reset-password`
+      `/college-admin/teachers/${teacherId}/reset-password`,
     );
     return response.data.data;
   },
@@ -246,7 +251,7 @@ export const collegeAdminTeacherService = {
    * Bulk import teachers
    */
   bulkImport: async (
-    teachers: BulkImportTeacher[]
+    teachers: BulkImportTeacher[],
   ): Promise<BulkImportResult> => {
     const response = await api.post("/college-admin/teachers/bulk-import", {
       teachers,
